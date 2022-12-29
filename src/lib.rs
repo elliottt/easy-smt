@@ -196,9 +196,38 @@ impl Solver {
             )),
         }
     }
+
+    /// Returns the names of the formulas involved in a contradiction.
+    pub fn get_unsat_core(&mut self) -> io::Result<SExpr> {
+        self.send(SExpr::list(vec![SExpr::atom("get-unsat-core")]))?;
+        self.recv()
+    }
+
+    pub fn set_logic<L: AsRef<str>>(&mut self, logic: L) -> io::Result<()> {
+        self.ack_command(SExpr::list(vec![
+            SExpr::atom("set-logic"),
+            SExpr::atom(logic),
+        ]))
+    }
+
+    pub fn push(&mut self) -> io::Result<()> {
+        self.ack_command(SExpr::list(vec![SExpr::atom("push")]))
+    }
+
+    pub fn push_many(&mut self, n: usize) -> io::Result<()> {
+        self.ack_command(SExpr::list(vec![SExpr::atom("push"), SExpr::from(n)]))
+    }
+
+    pub fn pop(&mut self) -> io::Result<()> {
+        self.ack_command(SExpr::list(vec![SExpr::atom("pop")]))
+    }
+
+    pub fn pop_many(&mut self, n: usize) -> io::Result<()> {
+        self.ack_command(SExpr::list(vec![SExpr::atom("pop"), SExpr::from(n)]))
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum SExpr {
     Atom(String),
     App(Vec<SExpr>),
@@ -231,8 +260,46 @@ impl SExpr {
         SExpr::Atom(String::from(sym.as_ref()))
     }
 
-    pub fn equal(self, other: SExpr) -> Self {
-        SExpr::App(vec![Self::atom("="), self, other])
+    pub fn binop<Op: AsRef<str>>(op: Op, lhs: Self, rhs: Self) -> Self {
+        SExpr::list(vec![Self::atom(op), lhs, rhs])
+    }
+
+    pub fn unary<Op: AsRef<str>>(op: Op, body: Self) -> Self {
+        SExpr::list(vec![Self::atom(op), body])
+    }
+
+    pub fn equal(self, other: Self) -> Self {
+        Self::binop("=", self, other)
+    }
+
+    pub fn not(other: Self) -> Self {
+        Self::unary("not", other)
+    }
+
+    pub fn and<I: IntoIterator<Item = Self>>(items: I) -> Self {
+        let mut parts = vec![SExpr::atom("and")];
+        parts.extend(items);
+        SExpr::list(parts)
+    }
+
+    pub fn lt(self, other: Self) -> Self {
+        Self::binop("<", self, other)
+    }
+
+    pub fn lte(self, other: Self) -> Self {
+        Self::binop("<=", self, other)
+    }
+
+    pub fn gt(self, other: Self) -> Self {
+        Self::binop(">", self, other)
+    }
+
+    pub fn gte(self, other: Self) -> Self {
+        Self::binop(">=", self, other)
+    }
+
+    pub fn named<N: AsRef<str>>(self, name: N) -> Self {
+        Self::list(vec![Self::atom("!"), self, Self::atom(":named"), Self::atom(name)])
     }
 }
 
@@ -270,7 +337,7 @@ impl<'a> Lexer<'a> {
                 buf.push(*c);
                 self.chars.next();
             } else {
-                break
+                break;
             }
         }
 
@@ -301,5 +368,22 @@ impl<'a> Iterator for Lexer<'a> {
         }
 
         None
+    }
+}
+
+impl TryInto<u64> for SExpr {
+    type Error = std::num::ParseIntError;
+
+    fn try_into(self) -> Result<u64, Self::Error> {
+        match self {
+            SExpr::Atom(str) => str.parse(),
+            _ => todo!(),
+        }
+    }
+}
+
+impl From<usize> for SExpr {
+    fn from(val: usize) -> SExpr {
+        SExpr::Atom(format!("{}", val))
     }
 }
