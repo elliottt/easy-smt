@@ -5,61 +5,65 @@ pub struct SExpr(Rc<SExprInner>);
 
 impl SExpr {
     pub fn new(inner: SExprInner) -> Self {
-        SExpr(Rc::new(inner))
+        Self(Rc::new(inner))
     }
 
-    pub fn list(args: Vec<SExpr>) -> SExpr {
-        SExpr::new(SExprInner::List(args))
+    pub fn list(args: Vec<Self>) -> Self {
+        Self::new(SExprInner::List(args))
     }
 
-    pub fn atom<S: AsRef<str>>(sym: S) -> SExpr {
-        SExpr::new(SExprInner::Atom(String::from(sym.as_ref())))
+    pub fn atom<S: AsRef<str>>(sym: S) -> Self {
+        Self::new(SExprInner::Atom(String::from(sym.as_ref())))
     }
 
-    fn binop<Op: AsRef<str>>(self, op: Op, rhs: SExpr) -> SExpr {
-        SExpr::list(vec![SExpr::atom(op), self, rhs])
+    fn binop<Op: AsRef<str>>(self, op: Op, rhs: Self) -> Self {
+        Self::list(vec![Self::atom(op), self, rhs])
     }
 
-    fn unary<Op: AsRef<str>>(self, op: Op) -> SExpr {
-        SExpr::list(vec![SExpr::atom(op), self])
+    fn unary<Op: AsRef<str>>(self, op: Op) -> Self {
+        Self::list(vec![Self::atom(op), self])
     }
 
-    pub fn equal(self, rhs: SExpr) -> SExpr {
+    pub fn equal(self, rhs: Self) -> Self {
         self.binop("=", rhs)
     }
 
-    pub fn not(self) -> SExpr {
+    pub fn implies(self, rhs: Self) -> Self {
+        self.binop("=>", rhs)
+    }
+
+    pub fn not(self) -> Self {
         self.unary("not")
     }
 
-    pub fn and<I: IntoIterator<Item = SExpr>>(items: I) -> SExpr {
-        let mut parts = vec![SExpr::atom("and")];
+    pub fn and<I: IntoIterator<Item = Self>>(items: I) -> Self {
+        let mut parts = vec![Self::atom("and")];
         parts.extend(items);
-        SExpr::list(parts)
+        Self::list(parts)
     }
 
-    pub fn lt(self, rhs: SExpr) -> SExpr {
+    pub fn lt(self, rhs: Self) -> Self {
         self.binop("<", rhs)
     }
 
-    pub fn lte(self, rhs: SExpr) -> SExpr {
+    pub fn lte(self, rhs: Self) -> Self {
         self.binop("<=", rhs)
     }
 
-    pub fn gt(self, rhs: SExpr) -> SExpr {
+    pub fn gt(self, rhs: Self) -> Self {
         self.binop(">", rhs)
     }
 
-    pub fn gte(self, rhs: SExpr) -> SExpr {
+    pub fn gte(self, rhs: Self) -> Self {
         self.binop(">=", rhs)
     }
 
-    pub fn named<N: AsRef<str>>(self, name: N) -> SExpr {
-        SExpr::list(vec![
-            SExpr::atom("!"),
+    pub fn named<N: AsRef<str>>(self, name: N) -> Self {
+        Self::list(vec![
+            Self::atom("!"),
             self,
-            SExpr::atom(":named"),
-            SExpr::atom(name),
+            Self::atom(":named"),
+            Self::atom(name),
         ])
     }
 }
@@ -89,7 +93,7 @@ impl TryInto<u64> for SExpr {
 
 impl From<usize> for SExpr {
     fn from(val: usize) -> Self {
-        SExpr::atom(&format!("{}", val))
+        Self::atom(&format!("{}", val))
     }
 }
 
