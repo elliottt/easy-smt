@@ -30,7 +30,9 @@ fn main() -> std::io::Result<()> {
             let cell = col[y].clone();
             for i in y + 1..9 {
                 solver.assert(
-                    SExpr::not(cell.clone().equal(col[i].clone()))
+                    cell.clone()
+                        .equal(col[i].clone())
+                        .not()
                         .named(format!("col_{}_{}_{}", x, y, i)),
                 )?;
             }
@@ -42,7 +44,9 @@ fn main() -> std::io::Result<()> {
             let cell = cols[x][y].clone();
             for i in x + 1..9 {
                 solver.assert(
-                    SExpr::not(cell.clone().equal(cols[i][y].clone()))
+                    cell.clone()
+                        .equal(cols[i][y].clone())
+                        .not()
                         .named(format!("row_{}_{}_{}", y, x, i)),
                 )?;
             }
@@ -66,11 +70,12 @@ fn main() -> std::io::Result<()> {
                 let cell = &cols[*x1][*y1];
                 for (x2, y2) in cells.iter().skip(i + 1) {
                     let other = &cols[*x2][*y2];
-                    solver.assert(SExpr::not(
+                    solver.assert(
                         cell.clone()
                             .equal(other.clone())
+                            .not()
                             .named(format!("subgrid_{}_{}_{}_{}", x1, y1, x2, y2)),
-                    ))?
+                    )?
                 }
             }
         }

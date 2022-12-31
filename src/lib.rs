@@ -4,7 +4,7 @@ use std::process;
 
 mod sexpr;
 
-pub use sexpr::SExpr;
+pub use sexpr::{SExpr, SExprInner};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Response {
@@ -48,9 +48,9 @@ impl Solver {
         Ok(solver)
     }
 
-    fn send(&mut self, expr: SExpr) -> io::Result<()> {
+    fn send<E: AsRef<SExprInner>>(&mut self, expr: E) -> io::Result<()> {
         use io::Write;
-        write!(self.stdin, "{}\n", expr)
+        write!(self.stdin, "{}\n", expr.as_ref())
     }
 
     fn recv(&mut self) -> io::Result<SExpr> {
@@ -58,7 +58,7 @@ impl Solver {
 
         while let Some(line) = self.stdout.next() {
             if let Some(res) = self.parser.parse(&line?) {
-                return Ok(res)
+                return Ok(res);
             }
         }
 
@@ -80,11 +80,11 @@ impl Solver {
         ]))
     }
 
-    fn ack_command(&mut self, c: SExpr) -> io::Result<()> {
+    fn ack_command<E: AsRef<SExprInner>>(&mut self, c: E) -> io::Result<()> {
         self.send(c)?;
         let resp = self.recv()?;
-        match resp {
-            SExpr::Atom(sym) if sym == "success" => Ok(()),
+        match resp.as_ref() {
+            SExprInner::Atom(sym) if sym == "success" => Ok(()),
             _ => Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!("Unexpected result from solver: {:?}", resp),
@@ -99,8 +99,8 @@ impl Solver {
     pub fn check(&mut self) -> io::Result<Response> {
         self.send(SExpr::list(vec![SExpr::atom("check-sat")]))?;
         let resp = self.recv()?;
-        match resp {
-            SExpr::Atom(atom) => match atom.as_ref() {
+        match resp.as_ref() {
+            SExprInner::Atom(atom) => match atom.as_ref() {
                 "sat" => return Ok(Response::Sat),
                 "unsat" => return Ok(Response::Unsat),
                 "unknown" => return Ok(Response::Unknown),
@@ -118,11 +118,11 @@ impl Solver {
         body: SExpr,
     ) -> io::Result<SExpr> {
         let name = SExpr::atom(name);
-        let expr = SExpr::App(vec![
+        let expr = SExpr::list(vec![
             SExpr::atom("declare-fun"),
             name.clone(),
             SExpr::list(args),
-            body,
+            body.clone(),
         ]);
         self.ack_command(expr)?;
         Ok(name)
@@ -139,16 +139,14 @@ impl Solver {
         ]))?;
 
         let resp = self.recv()?;
-        match resp {
-            SExpr::App(pairs) => {
+        match resp.as_ref() {
+            SExprInner::List(pairs) => {
                 let mut res = Vec::with_capacity(pairs.len());
                 for expr in pairs {
-                    match expr {
-                        SExpr::App(mut pair) => {
+                    match expr.as_ref() {
+                        SExprInner::List(pair) => {
                             assert_eq!(2, pair.len());
-                            let val = pair.pop().unwrap();
-                            let key = pair.pop().unwrap();
-                            res.push((key, val));
+                            res.push((pair[0].clone(), pair[1].clone()));
                         }
                         _ => unreachable!(),
                     }
@@ -190,22 +188,5 @@ impl Solver {
 
     pub fn pop_many(&mut self, n: usize) -> io::Result<()> {
         self.ack_command(SExpr::list(vec![SExpr::atom("pop"), SExpr::from(n)]))
-    }
-}
-
-impl TryInto<u64> for SExpr {
-    type Error = std::num::ParseIntError;
-
-    fn try_into(self) -> Result<u64, Self::Error> {
-        match self {
-            SExpr::Atom(str) => str.parse(),
-            _ => todo!(),
-        }
-    }
-}
-
-impl From<usize> for SExpr {
-    fn from(val: usize) -> SExpr {
-        SExpr::Atom(format!("{}", val))
     }
 }

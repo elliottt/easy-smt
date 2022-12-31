@@ -1,14 +1,109 @@
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum SExpr {
-    Atom(String),
-    App(Vec<SExpr>),
+use std::rc::Rc;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct SExpr(Rc<SExprInner>);
+
+impl SExpr {
+    pub fn new(inner: SExprInner) -> Self {
+        SExpr(Rc::new(inner))
+    }
+
+    pub fn list(args: Vec<SExpr>) -> SExpr {
+        SExpr::new(SExprInner::List(args))
+    }
+
+    pub fn atom<S: AsRef<str>>(sym: S) -> SExpr {
+        SExpr::new(SExprInner::Atom(String::from(sym.as_ref())))
+    }
+
+    fn binop<Op: AsRef<str>>(self, op: Op, rhs: SExpr) -> SExpr {
+        SExpr::list(vec![SExpr::atom(op), self, rhs])
+    }
+
+    fn unary<Op: AsRef<str>>(self, op: Op) -> SExpr {
+        SExpr::list(vec![SExpr::atom(op), self])
+    }
+
+    pub fn equal(self, rhs: SExpr) -> SExpr {
+        self.binop("=", rhs)
+    }
+
+    pub fn not(self) -> SExpr {
+        self.unary("not")
+    }
+
+    pub fn and<I: IntoIterator<Item = SExpr>>(items: I) -> SExpr {
+        let mut parts = vec![SExpr::atom("and")];
+        parts.extend(items);
+        SExpr::list(parts)
+    }
+
+    pub fn lt(self, rhs: SExpr) -> SExpr {
+        self.binop("<", rhs)
+    }
+
+    pub fn lte(self, rhs: SExpr) -> SExpr {
+        self.binop("<=", rhs)
+    }
+
+    pub fn gt(self, rhs: SExpr) -> SExpr {
+        self.binop(">", rhs)
+    }
+
+    pub fn gte(self, rhs: SExpr) -> SExpr {
+        self.binop(">=", rhs)
+    }
+
+    pub fn named<N: AsRef<str>>(self, name: N) -> SExpr {
+        SExpr::list(vec![
+            SExpr::atom("!"),
+            self,
+            SExpr::atom(":named"),
+            SExpr::atom(name),
+        ])
+    }
 }
 
 impl std::fmt::Display for SExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl AsRef<SExprInner> for SExpr {
+    fn as_ref(&self) -> &SExprInner {
+        self.0.as_ref()
+    }
+}
+
+impl TryInto<u64> for SExpr {
+    type Error = std::num::ParseIntError;
+
+    fn try_into(self) -> Result<u64, Self::Error> {
+        match self.as_ref() {
+            SExprInner::Atom(str) => str.parse(),
+            _ => todo!(),
+        }
+    }
+}
+
+impl From<usize> for SExpr {
+    fn from(val: usize) -> Self {
+        SExpr::atom(&format!("{}", val))
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub enum SExprInner {
+    Atom(String),
+    List(Vec<SExpr>),
+}
+
+impl std::fmt::Display for SExprInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            SExpr::Atom(str) => write!(f, "{}", str),
-            SExpr::App(nodes) => {
+            SExprInner::Atom(str) => write!(f, "{}", str),
+            SExprInner::List(nodes) => {
                 write!(f, "(")?;
                 let mut sep = "";
                 for node in nodes.into_iter() {
@@ -22,62 +117,7 @@ impl std::fmt::Display for SExpr {
     }
 }
 
-impl SExpr {
-    pub fn list(args: Vec<Self>) -> Self {
-        SExpr::App(args)
-    }
-
-    pub fn atom<S: AsRef<str>>(sym: S) -> Self {
-        SExpr::Atom(String::from(sym.as_ref()))
-    }
-
-    pub fn binop<Op: AsRef<str>>(op: Op, lhs: Self, rhs: Self) -> Self {
-        SExpr::list(vec![Self::atom(op), lhs, rhs])
-    }
-
-    pub fn unary<Op: AsRef<str>>(op: Op, body: Self) -> Self {
-        SExpr::list(vec![Self::atom(op), body])
-    }
-
-    pub fn equal(self, other: Self) -> Self {
-        Self::binop("=", self, other)
-    }
-
-    pub fn not(other: Self) -> Self {
-        Self::unary("not", other)
-    }
-
-    pub fn and<I: IntoIterator<Item = Self>>(items: I) -> Self {
-        let mut parts = vec![SExpr::atom("and")];
-        parts.extend(items);
-        SExpr::list(parts)
-    }
-
-    pub fn lt(self, other: Self) -> Self {
-        Self::binop("<", self, other)
-    }
-
-    pub fn lte(self, other: Self) -> Self {
-        Self::binop("<=", self, other)
-    }
-
-    pub fn gt(self, other: Self) -> Self {
-        Self::binop(">", self, other)
-    }
-
-    pub fn gte(self, other: Self) -> Self {
-        Self::binop(">=", self, other)
-    }
-
-    pub fn named<N: AsRef<str>>(self, name: N) -> Self {
-        Self::list(vec![
-            Self::atom("!"),
-            self,
-            Self::atom(":named"),
-            Self::atom(name),
-        ])
-    }
-}
+impl SExprInner {}
 
 pub(crate) struct Parser {
     context: Vec<Vec<SExpr>>,
@@ -95,7 +135,7 @@ impl Parser {
     }
 
     fn atom(&mut self, sym: String) -> Option<SExpr> {
-        let expr = SExpr::Atom(sym);
+        let expr = SExpr::atom(sym);
         if let Some(outer) = self.context.last_mut() {
             outer.push(expr);
             None
@@ -106,7 +146,7 @@ impl Parser {
 
     fn app(&mut self) -> Option<SExpr> {
         if let Some(args) = self.context.pop() {
-            let expr = SExpr::App(args);
+            let expr = SExpr::list(args);
             if let Some(outer) = self.context.last_mut() {
                 outer.push(expr);
             } else {
