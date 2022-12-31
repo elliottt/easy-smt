@@ -134,7 +134,7 @@ impl Parser {
         self.context.clear();
     }
 
-    fn atom(&mut self, sym: String) -> Option<SExpr> {
+    fn atom<S: AsRef<str>>(&mut self, sym: S) -> Option<SExpr> {
         let expr = SExpr::atom(sym);
         if let Some(outer) = self.context.last_mut() {
             outer.push(expr);
@@ -183,52 +183,50 @@ impl Parser {
 }
 
 #[derive(Debug)]
-enum Token {
+enum Token<'a> {
     LParen,
     RParen,
-    Symbol(String),
+    Symbol(&'a str),
 }
 
 struct Lexer<'a> {
-    chars: std::iter::Peekable<std::str::Chars<'a>>,
+    chars: &'a str,
+    indices: std::iter::Peekable<std::str::CharIndices<'a>>,
 }
 
 impl<'a> Lexer<'a> {
-    fn new(bytes: &'a str) -> Self {
+    fn new(chars: &'a str) -> Self {
         Self {
-            chars: bytes.chars().peekable(),
+            chars,
+            indices: chars.char_indices().peekable(),
         }
     }
 
-    fn scan_eol(&mut self) {
-        while let Some(c) = self.chars.next() {
-            if c == '\n' {
-                break;
-            }
-        }
-    }
-
-    fn scan_symbol(&mut self, c: char) -> String {
-        let mut buf = String::from(c);
-
-        while let Some(c) = self.chars.peek() {
-            if c.is_alphabetic() || c.is_numeric() || "~!@$%^&*_-+=<>.?/".contains(*c) {
-                buf.push(*c);
-                self.chars.next();
+    fn scan_symbol(&mut self, start: usize) -> &'a str {
+        let mut end;
+        loop {
+            if let Some((ix, c)) = self.indices.peek() {
+                end = *ix;
+                if c.is_alphabetic() || c.is_numeric() || "~!@$%^&*_-+=<>.?/".contains(*c) {
+                    self.indices.next();
+                    continue;
+                }
             } else {
-                break;
+                end = self.chars.len();
             }
+
+            break;
         }
 
-        buf
+        &self.chars[start..end]
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+    type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(c) = self.chars.next() {
+        while let Some((start, c)) = self.indices.next() {
             match c {
                 '(' => {
                     return Some(Token::LParen);
@@ -238,11 +236,13 @@ impl<'a> Iterator for Lexer<'a> {
                     return Some(Token::RParen);
                 }
 
-                ';' => self.scan_eol(),
+                // this is a bit of a hack, but if we encounter a comment we clear out the indices
+                // iterator as the parser is line oriented.
+                ';' => self.indices = self.chars[0..0].char_indices().peekable(),
 
                 c if c.is_whitespace() => {}
 
-                c => return Some(Token::Symbol(self.scan_symbol(c))),
+                _ => return Some(Token::Symbol(self.scan_symbol(start))),
             }
         }
 
