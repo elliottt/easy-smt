@@ -1,127 +1,111 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct SExpr(Rc<SExprInner>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SExpr {
+    /// TODO: explain the bit layout here
+    index: u32,
+}
 
 impl SExpr {
-    pub fn new(inner: SExprInner) -> Self {
-        Self(Rc::new(inner))
+    pub fn is_atom(&self) -> bool {
+        self.index & (1 << 31) == 0
     }
 
-    pub fn list(args: Vec<Self>) -> Self {
-        Self::new(SExprInner::List(args))
+    fn atom(ix: u32) -> Self {
+        assert!(ix < u32::MAX);
+        SExpr { index: ix }
     }
 
-    pub fn atom<S: AsRef<str>>(sym: S) -> Self {
-        Self::new(SExprInner::Atom(String::from(sym.as_ref())))
-    }
-
-    fn binop<Op: AsRef<str>>(self, op: Op, rhs: Self) -> Self {
-        Self::list(vec![Self::atom(op), self, rhs])
-    }
-
-    fn unary<Op: AsRef<str>>(self, op: Op) -> Self {
-        Self::list(vec![Self::atom(op), self])
-    }
-
-    pub fn equal(self, rhs: Self) -> Self {
-        self.binop("=", rhs)
-    }
-
-    pub fn implies(self, rhs: Self) -> Self {
-        self.binop("=>", rhs)
-    }
-
-    pub fn not(self) -> Self {
-        self.unary("not")
-    }
-
-    pub fn and<I: IntoIterator<Item = Self>>(items: I) -> Self {
-        let mut parts = vec![Self::atom("and")];
-        parts.extend(items);
-        Self::list(parts)
-    }
-
-    pub fn lt(self, rhs: Self) -> Self {
-        self.binop("<", rhs)
-    }
-
-    pub fn lte(self, rhs: Self) -> Self {
-        self.binop("<=", rhs)
-    }
-
-    pub fn gt(self, rhs: Self) -> Self {
-        self.binop(">", rhs)
-    }
-
-    pub fn gte(self, rhs: Self) -> Self {
-        self.binop(">=", rhs)
-    }
-
-    pub fn named<N: AsRef<str>>(self, name: N) -> Self {
-        Self::list(vec![
-            Self::atom("!"),
-            self,
-            Self::atom(":named"),
-            Self::atom(name),
-        ])
-    }
-}
-
-impl std::fmt::Display for SExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl AsRef<SExprInner> for SExpr {
-    fn as_ref(&self) -> &SExprInner {
-        self.0.as_ref()
-    }
-}
-
-impl TryInto<u64> for SExpr {
-    type Error = std::num::ParseIntError;
-
-    fn try_into(self) -> Result<u64, Self::Error> {
-        match self.as_ref() {
-            SExprInner::Atom(str) => str.parse(),
-            _ => todo!(),
+    fn list(ix: u32) -> Self {
+        assert!(ix < u32::MAX);
+        SExpr {
+            index: ix | (1 << 31),
         }
     }
 }
 
-impl From<usize> for SExpr {
-    fn from(val: usize) -> Self {
-        Self::atom(&format!("{}", val))
+#[derive(Default)]
+pub struct Arena {
+    /// Interned strings.
+    atoms: Vec<String>,
+
+    /// Backwards lookup for string data.
+    atom_map: HashMap<&'static str, SExpr>,
+
+    /// Interned lists.
+    lists: Vec<Vec<SExpr>>,
+
+    /// Backwards lookup for interned lists.
+    list_map: HashMap<&'static [SExpr], SExpr>,
+}
+
+impl Arena {
+    pub fn new() -> Self {
+        Self {
+            atoms: Vec::new(),
+            atom_map: HashMap::new(),
+            lists: Vec::new(),
+            list_map: HashMap::new(),
+        }
     }
-}
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum SExprInner {
-    Atom(String),
-    List(Vec<SExpr>),
-}
+    pub fn atom(&mut self, name: impl Into<String> + AsRef<str>) -> SExpr {
+        if let Some(sexpr) = self.atom_map.get(name.as_ref()) {
+            *sexpr
+        } else {
+            let ix = self.atoms.len();
+            let sexpr = SExpr::atom(ix as u32);
 
-impl std::fmt::Display for SExprInner {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            SExprInner::Atom(str) => write!(f, "{}", str),
-            SExprInner::List(nodes) => {
-                write!(f, "(")?;
-                let mut sep = "";
-                for node in nodes.into_iter() {
-                    write!(f, "{}", sep)?;
-                    node.fmt(f)?;
-                    sep = " ";
-                }
-                write!(f, ")")
-            }
+            let name: String = name.into();
+
+            // Safety argument: the name will live as long as the context as it is inserted into
+            // the vector below and never removed or resized.
+            let name_ref: &'static str = unsafe { std::mem::transmute(name.as_str()) };
+            self.atom_map.insert(name_ref, sexpr);
+            self.atoms.push(name);
+
+            sexpr
+        }
+    }
+
+    pub fn list(&mut self, list: Vec<SExpr>) -> SExpr {
+        if let Some(sexpr) = self.list_map.get(&list.as_slice()) {
+            *sexpr
+        } else {
+            let ix = self.lists.len();
+            let sexpr = SExpr::list(ix as u32);
+
+            // Safety argument: the name will live as long as the context as it is inserted into
+            // the vector below and never removed or resized.
+            let list_ref: &'static [SExpr] = unsafe { std::mem::transmute(list.as_slice()) };
+            self.list_map.insert(list_ref, sexpr);
+            self.lists.push(list);
+
+            sexpr
+        }
+    }
+
+    pub fn display(&self, sexpr: SExpr) -> Display {
+        Display {
+            context: self,
+            sexpr,
         }
     }
 }
 
-impl SExprInner {}
+pub struct Display<'a> {
+    context: &'a Arena,
+    sexpr: SExpr,
+}
+
+impl<'a> std::fmt::Display for Display<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        todo!();
+    }
+}
+
+/*
 
 pub(crate) struct Parser {
     context: Vec<Vec<SExpr>>,
@@ -253,3 +237,4 @@ impl<'a> Iterator for Lexer<'a> {
         None
     }
 }
+*/
