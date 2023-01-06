@@ -1,32 +1,38 @@
-use std::collections::HashMap;
-use std::rc::Rc;
+use std::{cell::RefCell, collections::HashMap};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SExpr {
-    /// TODO: explain the bit layout here
-    index: u32,
-}
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SExpr(u32);
 
 impl SExpr {
     pub fn is_atom(&self) -> bool {
-        self.index & (1 << 31) == 0
+        self.0 & (1 << 31) == 0
     }
 
     fn atom(ix: u32) -> Self {
         assert!(ix < u32::MAX);
-        SExpr { index: ix }
+        SExpr(ix)
     }
 
     fn list(ix: u32) -> Self {
         assert!(ix < u32::MAX);
-        SExpr {
-            index: ix | (1 << 31),
-        }
+        SExpr(ix | (1 << 31))
+    }
+
+    fn index(&self) -> usize {
+        (self.0 & !(1 << 31)) as usize
+    }
+}
+
+impl std::fmt::Debug for SExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple(if self.is_atom() { "SExpr::Atom" } else { "SExpr::List" })
+            .field(&self.index())
+            .finish()
     }
 }
 
 #[derive(Default)]
-pub struct Arena {
+struct ArenaInner {
     /// Interned strings.
     atoms: Vec<String>,
 
@@ -40,21 +46,24 @@ pub struct Arena {
     list_map: HashMap<&'static [SExpr], SExpr>,
 }
 
+pub(crate) struct Arena(RefCell<ArenaInner>);
+
 impl Arena {
     pub fn new() -> Self {
-        Self {
+        Self(RefCell::new(ArenaInner {
             atoms: Vec::new(),
             atom_map: HashMap::new(),
             lists: Vec::new(),
             list_map: HashMap::new(),
-        }
+        }))
     }
 
-    pub fn atom(&mut self, name: impl Into<String> + AsRef<str>) -> SExpr {
-        if let Some(sexpr) = self.atom_map.get(name.as_ref()) {
+    pub fn atom(&self, name: impl Into<String> + AsRef<str>) -> SExpr {
+        let mut inner = self.0.borrow_mut();
+        if let Some(sexpr) = inner.atom_map.get(name.as_ref()) {
             *sexpr
         } else {
-            let ix = self.atoms.len();
+            let ix = inner.atoms.len();
             let sexpr = SExpr::atom(ix as u32);
 
             let name: String = name.into();
@@ -62,50 +71,85 @@ impl Arena {
             // Safety argument: the name will live as long as the context as it is inserted into
             // the vector below and never removed or resized.
             let name_ref: &'static str = unsafe { std::mem::transmute(name.as_str()) };
-            self.atom_map.insert(name_ref, sexpr);
-            self.atoms.push(name);
+            inner.atom_map.insert(name_ref, sexpr);
+            inner.atoms.push(name);
 
             sexpr
         }
     }
 
-    pub fn list(&mut self, list: Vec<SExpr>) -> SExpr {
-        if let Some(sexpr) = self.list_map.get(&list.as_slice()) {
+    pub fn list(&self, list: Vec<SExpr>) -> SExpr {
+        let mut inner = self.0.borrow_mut();
+        if let Some(sexpr) = inner.list_map.get(&list.as_slice()) {
             *sexpr
         } else {
-            let ix = self.lists.len();
+            let ix = inner.lists.len();
             let sexpr = SExpr::list(ix as u32);
 
             // Safety argument: the name will live as long as the context as it is inserted into
             // the vector below and never removed or resized.
             let list_ref: &'static [SExpr] = unsafe { std::mem::transmute(list.as_slice()) };
-            self.list_map.insert(list_ref, sexpr);
-            self.lists.push(list);
+            inner.list_map.insert(list_ref, sexpr);
+            inner.lists.push(list);
 
             sexpr
         }
     }
 
-    pub fn display(&self, sexpr: SExpr) -> Display {
-        Display {
-            context: self,
+    pub fn display(&self, sexpr: SExpr) -> DisplayExpr {
+        DisplayExpr {
+            arena: self,
             sexpr,
+        }
+    }
+
+    pub fn get(&self, expr: SExpr) -> SExprData<'_> {
+        let inner = self.0.borrow();
+        if expr.is_atom() {
+            // Safety argument: the data will live as long as the containing context, and is
+            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            let data = unsafe { std::mem::transmute(inner.atoms[expr.index()].as_str()) };
+            SExprData::Atom(data)
+        } else {
+            // Safety argument: the data will live as long as the containing context, and is
+            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
+            SExprData::List(data)
         }
     }
 }
 
-pub struct Display<'a> {
-    context: &'a Arena,
+pub enum SExprData<'a> {
+    Atom(&'a str),
+    List(&'a [SExpr]),
+}
+
+pub struct DisplayExpr<'a> {
+    arena: &'a Arena,
     sexpr: SExpr,
 }
 
-impl<'a> std::fmt::Display for Display<'a> {
+impl<'a> std::fmt::Display for DisplayExpr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        todo!();
+        return fmt_sexpr(f, self.arena, self.sexpr);
+
+        fn fmt_sexpr(f: &mut std::fmt::Formatter, arena: &Arena, sexpr: SExpr) -> std::fmt::Result {
+            match arena.get(sexpr) {
+                SExprData::Atom(data) => std::fmt::Display::fmt(data, f),
+                SExprData::List(data) => {
+                    write!(f, "(")?;
+                    let mut sep = "";
+                    for s in data {
+                        std::fmt::Display::fmt(sep, f)?;
+                        fmt_sexpr(f, arena, *s)?;
+                        sep = " ";
+                    }
+                    write!(f, ")")
+                }
+            }
+        }
     }
 }
-
-/*
 
 pub(crate) struct Parser {
     context: Vec<Vec<SExpr>>,
@@ -122,8 +166,8 @@ impl Parser {
         self.context.clear();
     }
 
-    fn atom<S: AsRef<str>>(&mut self, sym: S) -> Option<SExpr> {
-        let expr = SExpr::atom(sym);
+    fn atom(&mut self, arena: &Arena, sym: &str) -> Option<SExpr> {
+        let expr = arena.atom(sym);
         if let Some(outer) = self.context.last_mut() {
             outer.push(expr);
             None
@@ -132,9 +176,9 @@ impl Parser {
         }
     }
 
-    fn app(&mut self) -> Option<SExpr> {
+    fn app(&mut self, arena: &Arena) -> Option<SExpr> {
         if let Some(args) = self.context.pop() {
-            let expr = SExpr::list(args);
+            let expr = arena.list(args);
             if let Some(outer) = self.context.last_mut() {
                 outer.push(expr);
             } else {
@@ -144,12 +188,12 @@ impl Parser {
         None
     }
 
-    pub(crate) fn parse(&mut self, bytes: &str) -> Option<SExpr> {
+    pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Option<SExpr> {
         let mut lexer = Lexer::new(bytes);
         while let Some(token) = lexer.next() {
             match token {
                 Token::Symbol(sym) => {
-                    let res = self.atom(sym);
+                    let res = self.atom(arena, sym);
                     if res.is_some() {
                         return res;
                     }
@@ -158,7 +202,7 @@ impl Parser {
                 Token::LParen => self.context.push(Vec::new()),
 
                 Token::RParen => {
-                    let res = self.app();
+                    let res = self.app(arena);
                     if res.is_some() {
                         return res;
                     }
@@ -237,4 +281,3 @@ impl<'a> Iterator for Lexer<'a> {
         None
     }
 }
-*/
