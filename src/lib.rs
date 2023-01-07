@@ -234,7 +234,17 @@ impl Context {
         self.list(args)
     }
 
+    pub fn or<I: IntoIterator<Item = SExpr>>(&self, items: I) -> SExpr {
+        let mut args = vec![self.atom("or")];
+        args.extend(items);
+        self.list(args)
+    }
+
     pub fn i32(&self, val: i32) -> SExpr {
+        self.arena.atom(val.to_string())
+    }
+
+    pub fn i64(&self, val: i64) -> SExpr {
         self.arena.atom(val.to_string())
     }
 
@@ -246,12 +256,40 @@ impl Context {
         self.arena.list(vec![self.arena.atom("="), lhs, rhs])
     }
 
+    pub fn imp(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom("=>"), lhs, rhs])
+    }
+
     pub fn gt(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
         self.arena.list(vec![self.arena.atom(">"), lhs, rhs])
     }
 
+    pub fn gte(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom(">="), lhs, rhs])
+    }
+
+    pub fn lt(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom("<"), lhs, rhs])
+    }
+
     pub fn lte(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
         self.arena.list(vec![self.arena.atom("<="), lhs, rhs])
+    }
+
+    pub fn plus(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom("+"), lhs, rhs])
+    }
+
+    pub fn negate(&self, val: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom("-"), val])
+    }
+
+    pub fn minus(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom("-"), lhs, rhs])
+    }
+
+    pub fn times(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.arena.list(vec![self.arena.atom("*"), lhs, rhs])
     }
 }
 
