@@ -47,8 +47,7 @@ macro_rules! known_atoms {
 macro_rules! variadic {
     ($name:ident, $op:ident) => {
         pub fn $name<I: IntoIterator<Item = SExpr>>(&self, items: I) -> SExpr {
-            let mut args = vec![self.$op()];
-            args.extend(items);
+            let args: Vec<_> = std::iter::once(self.$op()).chain(items).collect();
             assert!(args.len() >= 3);
             self.list(args)
         }
@@ -75,28 +74,28 @@ macro_rules! right_assoc {
     ($name:ident, $many:ident, $op:ident) => {
         binop!($name, $op);
         variadic!($many, $op);
-    }
+    };
 }
 
 macro_rules! left_assoc {
     ($name:ident, $many:ident, $op:ident) => {
         binop!($name, $op);
         variadic!($many, $op);
-    }
+    };
 }
 
 macro_rules! chainable {
     ($name:ident, $many:ident, $op:ident) => {
         binop!($name, $op);
         variadic!($many, $op);
-    }
+    };
 }
 
 macro_rules! pairwise {
     ($name:ident, $many:ident, $op:ident) => {
         binop!($name, $op);
         variadic!($many, $op);
-    }
+    };
 }
 
 impl Context {
@@ -146,6 +145,10 @@ impl Context {
         (array_, "Array"),
         (select_, "select"),
         (store_, "store"),
+        (let_name_, "let"),
+        (forall_, "forall"),
+        (exists_, "exists"),
+        (match_name_, "match"),
     ];
 
     pub fn without_solver() -> Self {
@@ -357,6 +360,77 @@ impl Context {
         self.arena.atom(val.to_string())
     }
 
+    /// A let-declaration with a single binding.
+    pub fn let_<N: Into<String> + AsRef<str>>(&self, name: N, e: SExpr, body: SExpr) -> SExpr {
+        self.list(vec![
+            self.let_name_(),
+            self.list(vec![self.atom(name), e]),
+            body,
+        ])
+    }
+
+    /// A let-declaration of multiple bindings.
+    pub fn let_many<N, I>(&self, bindings: I, body: SExpr) -> SExpr
+    where
+        I: IntoIterator<Item = (N, SExpr)>,
+        N: Into<String> + AsRef<str>,
+    {
+        let args: Vec<_> = std::iter::once(self.let_name_())
+            .chain(
+                bindings
+                    .into_iter()
+                    .map(|(n, v)| self.list(vec![self.atom(n), v])),
+            )
+            .chain(std::iter::once(body))
+            .collect();
+        assert!(args.len() >= 3);
+        self.list(args)
+    }
+
+    /// Universally quantify sorted variables in an expression.
+    pub fn forall<N, I>(&self, vars: I, body: SExpr) -> SExpr
+    where
+        I: IntoIterator<Item = (N, SExpr)>,
+        N: Into<String> + AsRef<str>,
+    {
+        let args: Vec<_> = std::iter::once(self.forall_())
+            .chain(
+                vars.into_iter()
+                    .map(|(n, s)| self.list(vec![self.atom(n), s])),
+            )
+            .chain(std::iter::once(body))
+            .collect();
+        assert!(args.len() >= 3);
+        self.list(args)
+    }
+
+    /// Existentially quantify sorted variables in an expression.
+    pub fn exists<N, I>(&self, vars: I, body: SExpr) -> SExpr
+    where
+        I: IntoIterator<Item = (N, SExpr)>,
+        N: Into<String> + AsRef<str>,
+    {
+        let args: Vec<_> = std::iter::once(self.exists_())
+            .chain(
+                vars.into_iter()
+                    .map(|(n, s)| self.list(vec![self.atom(n), s])),
+            )
+            .chain(std::iter::once(body))
+            .collect();
+        assert!(args.len() >= 3);
+        self.list(args)
+    }
+
+    /// Perform pattern matching on values of an algebraic data type.
+    pub fn match_<I: IntoIterator<Item = (SExpr, SExpr)>>(&self, term: SExpr, arms: I) -> SExpr {
+        let args: Vec<_> = std::iter::once(self.match_name_())
+            .chain(std::iter::once(term))
+            .chain(arms.into_iter().map(|(p, v)| self.list(vec![p, v])))
+            .collect();
+        assert!(args.len() >= 3);
+        self.list(args)
+    }
+
     /// The `Bool` sort.
     pub fn bool_sort(&self) -> SExpr {
         self.bool_()
@@ -379,7 +453,11 @@ impl Context {
     left_assoc!(xor, xor_many, xor_);
     chainable!(eq, eq_many, eq_);
     pairwise!(distinct, distinct_many, distinct_);
-    binop!(ite, ite_);
+
+    /// Construct an if-then-else expression.
+    pub fn ite(&self, c: SExpr, t: SExpr, e: SExpr) -> SExpr {
+        self.list(vec![self.ite_(), c, t, e])
+    }
 
     /// The `Int` sort.
     pub fn int_sort(&self) -> SExpr {
