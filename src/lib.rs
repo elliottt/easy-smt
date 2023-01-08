@@ -382,7 +382,7 @@ impl Context {
         self.int_()
     }
 
-    binop!(negate, minus_);
+    unary!(negate, minus_);
     left_assoc!(sub, sub_many, minus_);
     left_assoc!(plus, plus_many, plus_);
     left_assoc!(times, times_many, times_);
