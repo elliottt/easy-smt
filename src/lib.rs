@@ -149,6 +149,14 @@ impl Context {
         (forall_, "forall"),
         (exists_, "exists"),
         (match_name_, "match"),
+        (und_, "_"),
+        (bit_vec_, "BitVec"),
+        (concat_, "concat"),
+        (extract_, "extract"),
+        (bvnot_, "bvnot"),
+        (bvor_, "bvor"),
+        (bvand_, "bvand"),
+        (bvneg_, "bvneg"),
     ];
 
     pub fn without_solver() -> Self {
@@ -487,6 +495,29 @@ impl Context {
     pub fn store(&self, ary: SExpr, index: SExpr, value: SExpr) -> SExpr {
         self.list(vec![self.store_(), ary, index, value])
     }
+
+    /// Construct a BitVec sort with the given width.
+    pub fn bit_vec_sort(&self, width: SExpr) -> SExpr {
+        self.list(vec![self.und_(), self.bit_vec_(), width])
+    }
+
+    /// Concatenate two bit vectors.
+    pub fn concat(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+        self.list(vec![self.concat_(), lhs, rhs])
+    }
+
+    /// Extract a range from a bit vector.
+    pub fn extract(&self, i: i32, j: i32, bv: SExpr) -> SExpr {
+        self.list(vec![
+            self.list(vec![self.und_(), self.extract_(), self.i32(i), self.i32(j)]),
+            bv,
+        ])
+    }
+
+    unary!(bvnot, bvnot_);
+    binop!(bvor, bvor_);
+    binop!(bvand, bvand_);
+    unary!(bvneg, bvneg_);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
