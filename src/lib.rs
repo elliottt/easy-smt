@@ -7,12 +7,6 @@ mod sexpr;
 use sexpr::Arena;
 pub use sexpr::{DisplayExpr, SExpr, SExprData};
 
-pub struct Context {
-    solver: Option<Solver>,
-    arena: Arena,
-    known_atoms: Vec<SExpr>,
-}
-
 macro_rules! make_funs {
 
     ($idx:expr) => {};
@@ -20,7 +14,7 @@ macro_rules! make_funs {
     ($idx:expr, $fun:ident $(, $funs:ident)*) => {
         #[inline]
         fn $fun(&self) -> SExpr {
-            self.known_atoms[$idx]
+            self.atoms[$idx]
         }
 
         make_funs!($idx + 1usize $(, $funs)*);
@@ -29,25 +23,104 @@ macro_rules! make_funs {
 
 macro_rules! known_atoms {
     [$(($funs:ident, $atoms:literal)),* $(,)?] => {
+        struct KnownAtoms {
+            atoms: Vec<SExpr>,
+        }
 
-        make_funs!(0, $($funs),*);
+        impl KnownAtoms {
 
-        fn init_known_atoms(arena: &Arena) -> Vec<SExpr> {
-            let mut atoms = Vec::new();
+            make_funs!(0, $($funs),*);
 
-            $(
-                atoms.push(arena.atom($atoms));
-            )*
+            fn new(arena: &Arena) -> KnownAtoms {
+                let mut atoms = Vec::new();
 
-            atoms
+                $(
+                    atoms.push(arena.atom($atoms));
+                )*
+
+                KnownAtoms{ atoms }
+            }
+
         }
     }
 }
 
+known_atoms![
+    (check_sat_, "check-sat"),
+    (unsat_, "unsat"),
+    (sat_, "sat"),
+    (unknown_, "unknown"),
+    (declare_fun_, "declare-fun"),
+    (assert_, "assert"),
+    (get_model_, "get-model"),
+    (get_value_, "get-value"),
+    (get_unsat_core_, "get-unsat-core"),
+    (set_logic_, "set-logic"),
+    (set_option_, "set-option"),
+    (push_, "push"),
+    (pop_, "pop"),
+    (bool_, "Bool"),
+    (bang_, "!"),
+    (success_, "success"),
+    (t_, "true"),
+    (f_, "false"),
+    (not_, "not"),
+    (imp_, "=>"),
+    (and_, "and"),
+    (or_, "or"),
+    (xor_, "xor"),
+    (eq_, "="),
+    (distinct_, "distinct"),
+    (ite_, "ite"),
+    (int_, "Int"),
+    (minus_, "-"),
+    (plus_, "+"),
+    (times_, "*"),
+    (lte_, "<="),
+    (lt_, "<"),
+    (gte_, ">="),
+    (gt_, ">"),
+    (array_, "Array"),
+    (select_, "select"),
+    (store_, "store"),
+    (let_name_, "let"),
+    (forall_, "forall"),
+    (exists_, "exists"),
+    (match_name_, "match"),
+    (und_, "_"),
+    (bit_vec_, "BitVec"),
+    (concat_, "concat"),
+    (extract_, "extract"),
+    (bvnot_, "bvnot"),
+    (bvor_, "bvor"),
+    (bvand_, "bvand"),
+    (bvnand_, "bvnand"),
+    (bvxor_, "bvxor"),
+    (bvxnor_, "bvxnor"),
+    (bvneg_, "bvneg"),
+    (bvadd_, "bvadd"),
+    (bvsub_, "bvsub"),
+    (bvmul_, "bvmul"),
+    (bvudiv_, "bvudiv"),
+    (bvurem_, "bvurem"),
+    (bvsrem_, "bvsrem"),
+    (bvshl_, "bvshl"),
+    (bvlshr_, "bvlshr"),
+    (bvashr_, "bvashr"),
+    (bvule_, "bvule"),
+    (bvult_, "bvult"),
+    (bvuge_, "bvuge"),
+    (bvugt_, "bvugt"),
+    (bvsle_, "bvsle"),
+    (bvslt_, "bvslt"),
+    (bvsge_, "bvsge"),
+    (bvsgt_, "bvsgt"),
+];
+
 macro_rules! variadic {
     ($name:ident, $op:ident) => {
         pub fn $name<I: IntoIterator<Item = SExpr>>(&self, items: I) -> SExpr {
-            let args: Vec<_> = std::iter::once(self.$op()).chain(items).collect();
+            let args: Vec<_> = std::iter::once(self.atoms.$op()).chain(items).collect();
             assert!(args.len() >= 3);
             self.list(args)
         }
@@ -57,7 +130,7 @@ macro_rules! variadic {
 macro_rules! unary {
     ($name:ident, $op:ident) => {
         pub fn $name(&self, val: SExpr) -> SExpr {
-            self.list(vec![self.$op(), val])
+            self.list(vec![self.atoms.$op(), val])
         }
     };
 }
@@ -65,7 +138,7 @@ macro_rules! unary {
 macro_rules! binop {
     ($name:ident, $op:ident) => {
         pub fn $name(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-            self.list(vec![self.$op(), lhs, rhs])
+            self.list(vec![self.atoms.$op(), lhs, rhs])
         }
     };
 }
@@ -98,6 +171,12 @@ macro_rules! pairwise {
     };
 }
 
+pub struct Context {
+    solver: Option<Solver>,
+    arena: Arena,
+    atoms: KnownAtoms,
+}
+
 impl Context {
     pub fn new<P, A>(program: P, args: A) -> io::Result<Self>
     where
@@ -106,13 +185,13 @@ impl Context {
         A::Item: AsRef<ffi::OsStr>,
     {
         let arena = Arena::new();
-        let known_atoms = Self::init_known_atoms(&arena);
+        let atoms = KnownAtoms::new(&arena);
         let solver = Solver::new(program, args)?;
 
         let mut ctx = Context {
             solver: Some(solver),
             arena,
-            known_atoms,
+            atoms,
         };
 
         ctx.set_option(":print-success", ctx.true_())?;
@@ -121,51 +200,13 @@ impl Context {
         Ok(ctx)
     }
 
-    known_atoms![
-        (declare_fun_, "declare-fun"),
-        (bool_, "Bool"),
-        (t_, "true"),
-        (f_, "false"),
-        (not_, "not"),
-        (imp_, "=>"),
-        (and_, "and"),
-        (or_, "or"),
-        (xor_, "xor"),
-        (eq_, "="),
-        (distinct_, "distinct"),
-        (ite_, "ite"),
-        (int_, "Int"),
-        (minus_, "-"),
-        (plus_, "+"),
-        (times_, "*"),
-        (lte_, "<="),
-        (lt_, "<"),
-        (gte_, ">="),
-        (gt_, ">"),
-        (array_, "Array"),
-        (select_, "select"),
-        (store_, "store"),
-        (let_name_, "let"),
-        (forall_, "forall"),
-        (exists_, "exists"),
-        (match_name_, "match"),
-        (und_, "_"),
-        (bit_vec_, "BitVec"),
-        (concat_, "concat"),
-        (extract_, "extract"),
-        (bvnot_, "bvnot"),
-        (bvor_, "bvor"),
-        (bvand_, "bvand"),
-        (bvneg_, "bvneg"),
-    ];
-
     pub fn without_solver() -> Self {
         let arena = Arena::new();
-        let known_atoms = Self::init_known_atoms(&arena);
+        let atoms = KnownAtoms::new(&arena);
         Context {
             solver: None,
             arena,
-            known_atoms,
+            atoms,
         }
     }
 
@@ -177,7 +218,11 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.set_option(&self.arena, name, value)
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.set_option_(), self.arena.atom(name), value]),
+        )
     }
 
     pub fn declare<S: Into<String> + AsRef<str>>(
@@ -193,14 +238,13 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        let cmd = self.arena.list(vec![self.arena.atom("check-sat")]);
-        solver.send(&self.arena, cmd)?;
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat_()]))?;
         let resp = solver.recv(&mut self.arena)?;
-        if resp == self.arena.atom("sat") {
+        if resp == self.atoms.sat_() {
             Ok(Response::Sat)
-        } else if resp == self.arena.atom("unsat") {
+        } else if resp == self.atoms.unsat_() {
             Ok(Response::Unsat)
-        } else if resp == self.arena.atom("unknown") {
+        } else if resp == self.atoms.unknown_() {
             Ok(Response::Unknown)
         } else {
             Err(io::Error::new(
@@ -216,37 +260,54 @@ impl Context {
         args: Vec<SExpr>,
         body: SExpr,
     ) -> io::Result<SExpr> {
-        let name = self.arena.atom(name);
-        let expr = self
-            .arena
-            .list(vec![self.declare_fun_(), name, self.arena.list(args), body]);
+        let name = self.atom(name);
         let solver = self
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.ack_command(&mut self.arena, expr)?;
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success_(),
+            self.arena.list(vec![
+                self.atoms.declare_fun_(),
+                name,
+                self.arena.list(args),
+                body,
+            ]),
+        )?;
         Ok(name)
     }
 
     pub fn assert(&mut self, expr: SExpr) -> io::Result<()> {
-        let cmd = self.arena.list(vec![self.arena.atom("assert"), expr]);
         let solver = self
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.ack_command(&mut self.arena, cmd)
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.assert_(), expr]),
+        )
+    }
+
+    pub fn get_model(&mut self) -> io::Result<SExpr> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("ack_command requires a running solver");
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_model_()]))?;
+        solver.recv(&self.arena)
     }
 
     pub fn get_value(&mut self, vals: Vec<SExpr>) -> io::Result<Vec<(SExpr, SExpr)>> {
-        let cmd = self
-            .arena
-            .list(vec![self.arena.atom("get-value"), self.arena.list(vals)]);
-
         let solver = self
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.send(&self.arena, cmd)?;
+        solver.send(
+            &self.arena,
+            self.arena.list(vec![self.atoms.get_value_(), self.arena.list(vals)]),
+        )?;
 
         let resp = solver.recv(&mut self.arena)?;
         match self.arena.get(resp) {
@@ -273,12 +334,11 @@ impl Context {
 
     /// Returns the names of the formulas involved in a contradiction.
     pub fn get_unsat_core(&mut self) -> io::Result<SExpr> {
-        let cmd = self.arena.list(vec![self.arena.atom("get-unsat-core")]);
         let solver = self
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.send(&self.arena, cmd)?;
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_unsat_core_()]))?;
         solver.recv(&mut self.arena)
     }
 
@@ -289,8 +349,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.arena
-                .list(vec![self.arena.atom("set-logic"), self.arena.atom(logic)]),
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.set_logic_(), self.arena.atom(logic)]),
         )
     }
 
@@ -299,7 +359,11 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.ack_command(&self.arena, self.arena.list(vec![self.arena.atom("push")]))
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.push_()]),
+        )
     }
 
     pub fn push_many(&mut self, n: usize) -> io::Result<()> {
@@ -309,10 +373,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.arena.list(vec![
-                self.arena.atom("push"),
-                self.arena.atom(n.to_string()),
-            ]),
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.push_(), self.arena.atom(n.to_string())]),
         )
     }
 
@@ -321,7 +383,11 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.ack_command(&self.arena, self.arena.list(vec![self.arena.atom("pop")]))
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.pop_()]),
+        )
     }
 
     pub fn pop_many(&mut self, n: usize) -> io::Result<()> {
@@ -331,8 +397,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.arena
-                .list(vec![self.arena.atom("pop"), self.arena.atom(n.to_string())]),
+            self.atoms.success_(),
+            self.arena.list(vec![self.atoms.pop_(), self.arena.atom(n.to_string())]),
         )
     }
 
@@ -353,7 +419,7 @@ impl Context {
     }
 
     pub fn attr(&self, expr: SExpr, name: impl Into<String> + AsRef<str>, val: SExpr) -> SExpr {
-        self.list(vec![self.atom("!"), expr, self.atom(name), val])
+        self.list(vec![self.atoms.bang_(), expr, self.atom(name), val])
     }
 
     pub fn named(&self, name: impl Into<String> + AsRef<str>, expr: SExpr) -> SExpr {
@@ -371,7 +437,7 @@ impl Context {
     /// A let-declaration with a single binding.
     pub fn let_<N: Into<String> + AsRef<str>>(&self, name: N, e: SExpr, body: SExpr) -> SExpr {
         self.list(vec![
-            self.let_name_(),
+            self.atoms.let_name_(),
             self.list(vec![self.atom(name), e]),
             body,
         ])
@@ -383,7 +449,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.let_name_())
+        let args: Vec<_> = std::iter::once(self.atoms.let_name_())
             .chain(
                 bindings
                     .into_iter()
@@ -401,7 +467,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.forall_())
+        let args: Vec<_> = std::iter::once(self.atoms.forall_())
             .chain(
                 vars.into_iter()
                     .map(|(n, s)| self.list(vec![self.atom(n), s])),
@@ -418,7 +484,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.exists_())
+        let args: Vec<_> = std::iter::once(self.atoms.exists_())
             .chain(
                 vars.into_iter()
                     .map(|(n, s)| self.list(vec![self.atom(n), s])),
@@ -431,7 +497,7 @@ impl Context {
 
     /// Perform pattern matching on values of an algebraic data type.
     pub fn match_<I: IntoIterator<Item = (SExpr, SExpr)>>(&self, term: SExpr, arms: I) -> SExpr {
-        let args: Vec<_> = std::iter::once(self.match_name_())
+        let args: Vec<_> = std::iter::once(self.atoms.match_name_())
             .chain(std::iter::once(term))
             .chain(arms.into_iter().map(|(p, v)| self.list(vec![p, v])))
             .collect();
@@ -441,17 +507,17 @@ impl Context {
 
     /// The `Bool` sort.
     pub fn bool_sort(&self) -> SExpr {
-        self.bool_()
+        self.atoms.bool_()
     }
 
     /// The `true` constant.
     pub fn true_(&self) -> SExpr {
-        self.t_()
+        self.atoms.t_()
     }
 
     /// The `false` constant.
     pub fn false_(&self) -> SExpr {
-        self.f_()
+        self.atoms.f_()
     }
 
     unary!(not, not_);
@@ -464,12 +530,12 @@ impl Context {
 
     /// Construct an if-then-else expression.
     pub fn ite(&self, c: SExpr, t: SExpr, e: SExpr) -> SExpr {
-        self.list(vec![self.ite_(), c, t, e])
+        self.list(vec![self.atoms.ite_(), c, t, e])
     }
 
     /// The `Int` sort.
     pub fn int_sort(&self) -> SExpr {
-        self.int_()
+        self.atoms.int_()
     }
 
     unary!(negate, minus_);
@@ -483,41 +549,66 @@ impl Context {
 
     /// Construct the array sort with the given index and element types.
     pub fn array_sort(&self, index: SExpr, element: SExpr) -> SExpr {
-        self.list(vec![self.array_(), index, element])
+        self.list(vec![self.atoms.array_(), index, element])
     }
 
     /// Select the element at the given index in the array.
     pub fn select(&self, ary: SExpr, index: SExpr) -> SExpr {
-        self.list(vec![self.select_(), ary, index])
+        self.list(vec![self.atoms.select_(), ary, index])
     }
 
     /// Store the value into the given index in the array, yielding a new array.
     pub fn store(&self, ary: SExpr, index: SExpr, value: SExpr) -> SExpr {
-        self.list(vec![self.store_(), ary, index, value])
+        self.list(vec![self.atoms.store_(), ary, index, value])
     }
 
     /// Construct a BitVec sort with the given width.
     pub fn bit_vec_sort(&self, width: SExpr) -> SExpr {
-        self.list(vec![self.und_(), self.bit_vec_(), width])
+        self.list(vec![self.atoms.und_(), self.atoms.bit_vec_(), width])
     }
 
     /// Concatenate two bit vectors.
     pub fn concat(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.list(vec![self.concat_(), lhs, rhs])
+        self.list(vec![self.atoms.concat_(), lhs, rhs])
     }
 
     /// Extract a range from a bit vector.
     pub fn extract(&self, i: i32, j: i32, bv: SExpr) -> SExpr {
         self.list(vec![
-            self.list(vec![self.und_(), self.extract_(), self.i32(i), self.i32(j)]),
+            self.list(vec![
+                self.atoms.und_(),
+                self.atoms.extract_(),
+                self.i32(i),
+                self.i32(j),
+            ]),
             bv,
         ])
     }
 
     unary!(bvnot, bvnot_);
-    binop!(bvor, bvor_);
-    binop!(bvand, bvand_);
+    left_assoc!(bvor, bvor_many, bvor_);
+    left_assoc!(bvand, bvand_many, bvand_);
+    left_assoc!(bvnand, bvnand_many, bvnand_);
+    left_assoc!(bvxor, bvxor_many, bvxor_);
+    left_assoc!(bvxnor, bvxnor_many, bvxnor_);
     unary!(bvneg, bvneg_);
+    left_assoc!(bvadd, bvadd_many, bvadd_);
+    binop!(bvsub, bvsub_);
+    left_assoc!(bvmul, bvmul_many, bvmul_);
+    binop!(bvudiv, bvudiv_);
+    binop!(bvurem, bvurem_);
+    binop!(bvsrem, bvsrem_);
+    binop!(bvshl, bvshl_);
+    binop!(bvlshr, bvlshr_);
+    binop!(bvashr, bvashr_);
+    binop!(bvule, bvule_);
+    binop!(bvult, bvult_);
+    binop!(bvuge, bvuge_);
+    binop!(bvugt, bvugt_);
+    binop!(bvsle, bvsle_);
+    binop!(bvslt, bvslt_);
+    binop!(bvsge, bvsge_);
+    binop!(bvsgt, bvsgt_);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -577,20 +668,10 @@ impl Solver {
         ))
     }
 
-    pub fn set_option<K>(&mut self, arena: &Arena, name: K, value: SExpr) -> io::Result<()>
-    where
-        K: Into<String> + AsRef<str>,
-    {
-        self.ack_command(
-            arena,
-            arena.list(vec![arena.atom("set-option"), arena.atom(name), value]),
-        )
-    }
-
-    fn ack_command(&mut self, arena: &Arena, c: SExpr) -> io::Result<()> {
+    fn ack_command(&mut self, arena: &Arena, success: SExpr, c: SExpr) -> io::Result<()> {
         self.send(arena, c)?;
         let resp = self.recv(arena)?;
-        if resp == arena.atom("success") {
+        if resp == success {
             Ok(())
         } else {
             Err(io::Error::new(
