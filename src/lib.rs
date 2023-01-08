@@ -18,6 +18,7 @@ macro_rules! make_funs {
     ($idx:expr) => {};
 
     ($idx:expr, $fun:ident $(, $funs:ident)*) => {
+        #[inline]
         fn $fun(&self) -> SExpr {
             self.known_atoms[$idx]
         }
@@ -142,6 +143,9 @@ impl Context {
         (lt_, "<"),
         (gte_, ">="),
         (gt_, ">"),
+        (array_, "Array"),
+        (select_, "select"),
+        (store_, "store"),
     ];
 
     pub fn without_solver() -> Self {
@@ -390,6 +394,21 @@ impl Context {
     chainable!(lt, lt_many, lt_);
     chainable!(gt, gt_many, gt_);
     chainable!(gte, gte_many, gte_);
+
+    /// Construct the array sort with the given index and element types.
+    pub fn array_sort(&self, index: SExpr, element: SExpr) -> SExpr {
+        self.list(vec![self.array_(), index, element])
+    }
+
+    /// Select the element at the given index in the array.
+    pub fn select(&self, ary: SExpr, index: SExpr) -> SExpr {
+        self.list(vec![self.select_(), ary, index])
+    }
+
+    /// Store the value into the given index in the array, yielding a new array.
+    pub fn store(&self, ary: SExpr, index: SExpr, value: SExpr) -> SExpr {
+        self.list(vec![self.store_(), ary, index, value])
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
