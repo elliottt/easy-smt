@@ -46,75 +46,75 @@ macro_rules! known_atoms {
 }
 
 known_atoms![
-    (check_sat_, "check-sat"),
-    (unsat_, "unsat"),
-    (sat_, "sat"),
-    (unknown_, "unknown"),
-    (declare_fun_, "declare-fun"),
-    (assert_, "assert"),
-    (get_model_, "get-model"),
-    (get_value_, "get-value"),
-    (get_unsat_core_, "get-unsat-core"),
-    (set_logic_, "set-logic"),
-    (set_option_, "set-option"),
-    (push_, "push"),
-    (pop_, "pop"),
-    (bool_, "Bool"),
-    (bang_, "!"),
-    (success_, "success"),
-    (t_, "true"),
-    (f_, "false"),
-    (not_, "not"),
-    (imp_, "=>"),
-    (and_, "and"),
-    (or_, "or"),
-    (xor_, "xor"),
-    (eq_, "="),
-    (distinct_, "distinct"),
-    (ite_, "ite"),
-    (int_, "Int"),
-    (minus_, "-"),
-    (plus_, "+"),
-    (times_, "*"),
-    (lte_, "<="),
-    (lt_, "<"),
-    (gte_, ">="),
-    (gt_, ">"),
-    (array_, "Array"),
-    (select_, "select"),
-    (store_, "store"),
-    (let_name_, "let"),
-    (forall_, "forall"),
-    (exists_, "exists"),
-    (match_name_, "match"),
-    (und_, "_"),
-    (bit_vec_, "BitVec"),
-    (concat_, "concat"),
-    (extract_, "extract"),
-    (bvnot_, "bvnot"),
-    (bvor_, "bvor"),
-    (bvand_, "bvand"),
-    (bvnand_, "bvnand"),
-    (bvxor_, "bvxor"),
-    (bvxnor_, "bvxnor"),
-    (bvneg_, "bvneg"),
-    (bvadd_, "bvadd"),
-    (bvsub_, "bvsub"),
-    (bvmul_, "bvmul"),
-    (bvudiv_, "bvudiv"),
-    (bvurem_, "bvurem"),
-    (bvsrem_, "bvsrem"),
-    (bvshl_, "bvshl"),
-    (bvlshr_, "bvlshr"),
-    (bvashr_, "bvashr"),
-    (bvule_, "bvule"),
-    (bvult_, "bvult"),
-    (bvuge_, "bvuge"),
-    (bvugt_, "bvugt"),
-    (bvsle_, "bvsle"),
-    (bvslt_, "bvslt"),
-    (bvsge_, "bvsge"),
-    (bvsgt_, "bvsgt"),
+    (check_sat, "check-sat"),
+    (unsat, "unsat"),
+    (sat, "sat"),
+    (unknown, "unknown"),
+    (declare_fun, "declare-fun"),
+    (assert, "assert"),
+    (get_model, "get-model"),
+    (get_value, "get-value"),
+    (get_unsat_core, "get-unsat-core"),
+    (set_logic, "set-logic"),
+    (set_option, "set-option"),
+    (push, "push"),
+    (pop, "pop"),
+    (bool, "Bool"),
+    (bang, "!"),
+    (success, "success"),
+    (t, "true"),
+    (f, "false"),
+    (not, "not"),
+    (imp, "=>"),
+    (and, "and"),
+    (or, "or"),
+    (xor, "xor"),
+    (eq, "="),
+    (distinct, "distinct"),
+    (ite, "ite"),
+    (int, "Int"),
+    (minus, "-"),
+    (plus, "+"),
+    (times, "*"),
+    (lte, "<="),
+    (lt, "<"),
+    (gte, ">="),
+    (gt, ">"),
+    (array, "Array"),
+    (select, "select"),
+    (store, "store"),
+    (let_, "let"),
+    (forall, "forall"),
+    (exists, "exists"),
+    (match_, "match"),
+    (und, "_"),
+    (bit_vec, "BitVec"),
+    (concat, "concat"),
+    (extract, "extract"),
+    (bvnot, "bvnot"),
+    (bvor, "bvor"),
+    (bvand, "bvand"),
+    (bvnand, "bvnand"),
+    (bvxor, "bvxor"),
+    (bvxnor, "bvxnor"),
+    (bvneg, "bvneg"),
+    (bvadd, "bvadd"),
+    (bvsub, "bvsub"),
+    (bvmul, "bvmul"),
+    (bvudiv, "bvudiv"),
+    (bvurem, "bvurem"),
+    (bvsrem, "bvsrem"),
+    (bvshl, "bvshl"),
+    (bvlshr, "bvlshr"),
+    (bvashr, "bvashr"),
+    (bvule, "bvule"),
+    (bvult, "bvult"),
+    (bvuge, "bvuge"),
+    (bvugt, "bvugt"),
+    (bvsle, "bvsle"),
+    (bvslt, "bvslt"),
+    (bvsge, "bvsge"),
+    (bvsgt, "bvsgt"),
 ];
 
 macro_rules! variadic {
@@ -220,8 +220,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.set_option_(), self.arena.atom(name), value]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.set_option(), self.arena.atom(name), value]),
         )
     }
 
@@ -238,13 +238,13 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat_()]))?;
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat()]))?;
         let resp = solver.recv(&mut self.arena)?;
-        if resp == self.atoms.sat_() {
+        if resp == self.atoms.sat() {
             Ok(Response::Sat)
-        } else if resp == self.atoms.unsat_() {
+        } else if resp == self.atoms.unsat() {
             Ok(Response::Unsat)
-        } else if resp == self.atoms.unknown_() {
+        } else if resp == self.atoms.unknown() {
             Ok(Response::Unknown)
         } else {
             Err(io::Error::new(
@@ -267,9 +267,9 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
+            self.atoms.success(),
             self.arena.list(vec![
-                self.atoms.declare_fun_(),
+                self.atoms.declare_fun(),
                 name,
                 self.arena.list(args),
                 body,
@@ -285,8 +285,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.assert_(), expr]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.assert(), expr]),
         )
     }
 
@@ -295,7 +295,7 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_model_()]))?;
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_model()]))?;
         solver.recv(&self.arena)
     }
 
@@ -306,7 +306,7 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.send(
             &self.arena,
-            self.arena.list(vec![self.atoms.get_value_(), self.arena.list(vals)]),
+            self.arena.list(vec![self.atoms.get_value(), self.arena.list(vals)]),
         )?;
 
         let resp = solver.recv(&mut self.arena)?;
@@ -338,7 +338,7 @@ impl Context {
             .solver
             .as_mut()
             .expect("ack_command requires a running solver");
-        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_unsat_core_()]))?;
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_unsat_core()]))?;
         solver.recv(&mut self.arena)
     }
 
@@ -349,8 +349,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.set_logic_(), self.arena.atom(logic)]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.set_logic(), self.arena.atom(logic)]),
         )
     }
 
@@ -361,8 +361,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.push_()]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.push()]),
         )
     }
 
@@ -373,8 +373,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.push_(), self.arena.atom(n.to_string())]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.push(), self.arena.atom(n.to_string())]),
         )
     }
 
@@ -385,8 +385,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.pop_()]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.pop()]),
         )
     }
 
@@ -397,8 +397,8 @@ impl Context {
             .expect("ack_command requires a running solver");
         solver.ack_command(
             &self.arena,
-            self.atoms.success_(),
-            self.arena.list(vec![self.atoms.pop_(), self.arena.atom(n.to_string())]),
+            self.atoms.success(),
+            self.arena.list(vec![self.atoms.pop(), self.arena.atom(n.to_string())]),
         )
     }
 
@@ -419,7 +419,7 @@ impl Context {
     }
 
     pub fn attr(&self, expr: SExpr, name: impl Into<String> + AsRef<str>, val: SExpr) -> SExpr {
-        self.list(vec![self.atoms.bang_(), expr, self.atom(name), val])
+        self.list(vec![self.atoms.bang(), expr, self.atom(name), val])
     }
 
     pub fn named(&self, name: impl Into<String> + AsRef<str>, expr: SExpr) -> SExpr {
@@ -437,7 +437,7 @@ impl Context {
     /// A let-declaration with a single binding.
     pub fn let_<N: Into<String> + AsRef<str>>(&self, name: N, e: SExpr, body: SExpr) -> SExpr {
         self.list(vec![
-            self.atoms.let_name_(),
+            self.atoms.let_(),
             self.list(vec![self.atom(name), e]),
             body,
         ])
@@ -449,7 +449,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.atoms.let_name_())
+        let args: Vec<_> = std::iter::once(self.atoms.let_())
             .chain(
                 bindings
                     .into_iter()
@@ -467,7 +467,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.atoms.forall_())
+        let args: Vec<_> = std::iter::once(self.atoms.forall())
             .chain(
                 vars.into_iter()
                     .map(|(n, s)| self.list(vec![self.atom(n), s])),
@@ -484,7 +484,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.atoms.exists_())
+        let args: Vec<_> = std::iter::once(self.atoms.exists())
             .chain(
                 vars.into_iter()
                     .map(|(n, s)| self.list(vec![self.atom(n), s])),
@@ -497,7 +497,7 @@ impl Context {
 
     /// Perform pattern matching on values of an algebraic data type.
     pub fn match_<I: IntoIterator<Item = (SExpr, SExpr)>>(&self, term: SExpr, arms: I) -> SExpr {
-        let args: Vec<_> = std::iter::once(self.atoms.match_name_())
+        let args: Vec<_> = std::iter::once(self.atoms.match_())
             .chain(std::iter::once(term))
             .chain(arms.into_iter().map(|(p, v)| self.list(vec![p, v])))
             .collect();
@@ -507,77 +507,77 @@ impl Context {
 
     /// The `Bool` sort.
     pub fn bool_sort(&self) -> SExpr {
-        self.atoms.bool_()
+        self.atoms.bool()
     }
 
     /// The `true` constant.
     pub fn true_(&self) -> SExpr {
-        self.atoms.t_()
+        self.atoms.t()
     }
 
     /// The `false` constant.
     pub fn false_(&self) -> SExpr {
-        self.atoms.f_()
+        self.atoms.f()
     }
 
-    unary!(not, not_);
-    right_assoc!(imp, imp_many, imp_);
-    left_assoc!(and, and_many, and_);
-    left_assoc!(or, or_many, or_);
-    left_assoc!(xor, xor_many, xor_);
-    chainable!(eq, eq_many, eq_);
-    pairwise!(distinct, distinct_many, distinct_);
+    unary!(not, not);
+    right_assoc!(imp, imp_many, imp);
+    left_assoc!(and, and_many, and);
+    left_assoc!(or, or_many, or);
+    left_assoc!(xor, xor_many, xor);
+    chainable!(eq, eq_many, eq);
+    pairwise!(distinct, distinct_many, distinct);
 
     /// Construct an if-then-else expression.
     pub fn ite(&self, c: SExpr, t: SExpr, e: SExpr) -> SExpr {
-        self.list(vec![self.atoms.ite_(), c, t, e])
+        self.list(vec![self.atoms.ite(), c, t, e])
     }
 
     /// The `Int` sort.
     pub fn int_sort(&self) -> SExpr {
-        self.atoms.int_()
+        self.atoms.int()
     }
 
-    unary!(negate, minus_);
-    left_assoc!(sub, sub_many, minus_);
-    left_assoc!(plus, plus_many, plus_);
-    left_assoc!(times, times_many, times_);
-    chainable!(lte, lte_many, lte_);
-    chainable!(lt, lt_many, lt_);
-    chainable!(gt, gt_many, gt_);
-    chainable!(gte, gte_many, gte_);
+    unary!(negate, minus);
+    left_assoc!(sub, sub_many, minus);
+    left_assoc!(plus, plus_many, plus);
+    left_assoc!(times, times_many, times);
+    chainable!(lte, lte_many, lte);
+    chainable!(lt, lt_many, lt);
+    chainable!(gt, gt_many, gt);
+    chainable!(gte, gte_many, gte);
 
     /// Construct the array sort with the given index and element types.
     pub fn array_sort(&self, index: SExpr, element: SExpr) -> SExpr {
-        self.list(vec![self.atoms.array_(), index, element])
+        self.list(vec![self.atoms.array(), index, element])
     }
 
     /// Select the element at the given index in the array.
     pub fn select(&self, ary: SExpr, index: SExpr) -> SExpr {
-        self.list(vec![self.atoms.select_(), ary, index])
+        self.list(vec![self.atoms.select(), ary, index])
     }
 
     /// Store the value into the given index in the array, yielding a new array.
     pub fn store(&self, ary: SExpr, index: SExpr, value: SExpr) -> SExpr {
-        self.list(vec![self.atoms.store_(), ary, index, value])
+        self.list(vec![self.atoms.store(), ary, index, value])
     }
 
     /// Construct a BitVec sort with the given width.
     pub fn bit_vec_sort(&self, width: SExpr) -> SExpr {
-        self.list(vec![self.atoms.und_(), self.atoms.bit_vec_(), width])
+        self.list(vec![self.atoms.und(), self.atoms.bit_vec(), width])
     }
 
     /// Concatenate two bit vectors.
     pub fn concat(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.list(vec![self.atoms.concat_(), lhs, rhs])
+        self.list(vec![self.atoms.concat(), lhs, rhs])
     }
 
     /// Extract a range from a bit vector.
     pub fn extract(&self, i: i32, j: i32, bv: SExpr) -> SExpr {
         self.list(vec![
             self.list(vec![
-                self.atoms.und_(),
-                self.atoms.extract_(),
+                self.atoms.und(),
+                self.atoms.extract(),
                 self.i32(i),
                 self.i32(j),
             ]),
@@ -585,30 +585,30 @@ impl Context {
         ])
     }
 
-    unary!(bvnot, bvnot_);
-    left_assoc!(bvor, bvor_many, bvor_);
-    left_assoc!(bvand, bvand_many, bvand_);
-    left_assoc!(bvnand, bvnand_many, bvnand_);
-    left_assoc!(bvxor, bvxor_many, bvxor_);
-    left_assoc!(bvxnor, bvxnor_many, bvxnor_);
-    unary!(bvneg, bvneg_);
-    left_assoc!(bvadd, bvadd_many, bvadd_);
-    binop!(bvsub, bvsub_);
-    left_assoc!(bvmul, bvmul_many, bvmul_);
-    binop!(bvudiv, bvudiv_);
-    binop!(bvurem, bvurem_);
-    binop!(bvsrem, bvsrem_);
-    binop!(bvshl, bvshl_);
-    binop!(bvlshr, bvlshr_);
-    binop!(bvashr, bvashr_);
-    binop!(bvule, bvule_);
-    binop!(bvult, bvult_);
-    binop!(bvuge, bvuge_);
-    binop!(bvugt, bvugt_);
-    binop!(bvsle, bvsle_);
-    binop!(bvslt, bvslt_);
-    binop!(bvsge, bvsge_);
-    binop!(bvsgt, bvsgt_);
+    unary!(bvnot, bvnot);
+    left_assoc!(bvor, bvor_many, bvor);
+    left_assoc!(bvand, bvand_many, bvand);
+    left_assoc!(bvnand, bvnand_many, bvnand);
+    left_assoc!(bvxor, bvxor_many, bvxor);
+    left_assoc!(bvxnor, bvxnor_many, bvxnor);
+    unary!(bvneg, bvneg);
+    left_assoc!(bvadd, bvadd_many, bvadd);
+    binop!(bvsub, bvsub);
+    left_assoc!(bvmul, bvmul_many, bvmul);
+    binop!(bvudiv, bvudiv);
+    binop!(bvurem, bvurem);
+    binop!(bvsrem, bvsrem);
+    binop!(bvshl, bvshl);
+    binop!(bvlshr, bvlshr);
+    binop!(bvashr, bvashr);
+    binop!(bvule, bvule);
+    binop!(bvult, bvult);
+    binop!(bvuge, bvuge);
+    binop!(bvugt, bvugt);
+    binop!(bvsle, bvsle);
+    binop!(bvslt, bvslt);
+    binop!(bvsge, bvsge);
+    binop!(bvsgt, bvsgt);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
