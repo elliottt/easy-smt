@@ -25,9 +25,13 @@ impl SExpr {
 
 impl std::fmt::Debug for SExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple(if self.is_atom() { "SExpr::Atom" } else { "SExpr::List" })
-            .field(&self.index())
-            .finish()
+        f.debug_tuple(if self.is_atom() {
+            "SExpr::Atom"
+        } else {
+            "SExpr::List"
+        })
+        .field(&self.index())
+        .finish()
     }
 }
 
@@ -97,10 +101,7 @@ impl Arena {
     }
 
     pub fn display(&self, sexpr: SExpr) -> DisplayExpr {
-        DisplayExpr {
-            arena: self,
-            sexpr,
-        }
+        DisplayExpr { arena: self, sexpr }
     }
 
     pub fn get(&self, expr: SExpr) -> SExprData<'_> {
