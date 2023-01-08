@@ -10,6 +10,92 @@ pub use sexpr::{DisplayExpr, SExpr, SExprData};
 pub struct Context {
     solver: Option<Solver>,
     arena: Arena,
+    known_atoms: Vec<SExpr>,
+}
+
+macro_rules! make_funs {
+
+    ($idx:expr) => {};
+
+    ($idx:expr, $fun:ident $(, $funs:ident)*) => {
+        fn $fun(&self) -> SExpr {
+            self.known_atoms[$idx]
+        }
+
+        make_funs!($idx + 1usize $(, $funs)*);
+    };
+}
+
+macro_rules! known_atoms {
+    [$(($funs:ident, $atoms:literal)),* $(,)?] => {
+
+        make_funs!(0, $($funs),*);
+
+        fn init_known_atoms(arena: &Arena) -> Vec<SExpr> {
+            let mut atoms = Vec::new();
+
+            $(
+                atoms.push(arena.atom($atoms));
+            )*
+
+            atoms
+        }
+    }
+}
+
+macro_rules! variadic {
+    ($name:ident, $op:ident) => {
+        pub fn $name<I: IntoIterator<Item = SExpr>>(&self, items: I) -> SExpr {
+            let mut args = vec![self.$op()];
+            args.extend(items);
+            assert!(args.len() >= 3);
+            self.list(args)
+        }
+    };
+}
+
+macro_rules! unary {
+    ($name:ident, $op:ident) => {
+        pub fn $name(&self, val: SExpr) -> SExpr {
+            self.list(vec![self.$op(), val])
+        }
+    };
+}
+
+macro_rules! binop {
+    ($name:ident, $op:ident) => {
+        pub fn $name(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
+            self.list(vec![self.$op(), lhs, rhs])
+        }
+    };
+}
+
+macro_rules! right_assoc {
+    ($name:ident, $many:ident, $op:ident) => {
+        binop!($name, $op);
+        variadic!($many, $op);
+    }
+}
+
+macro_rules! left_assoc {
+    ($name:ident, $many:ident, $op:ident) => {
+        binop!($name, $op);
+        variadic!($many, $op);
+    }
+}
+
+macro_rules! chainable {
+    ($name:ident, $many:ident, $op:ident) => {
+        binop!($name, $op);
+        variadic!($many, $op);
+    }
+}
+
+macro_rules! pairwise {
+    ($name:ident, $many:ident, $op:ident) => {
+        binop!($name, $op);
+        variadic!($many, $op);
+    }
 }
 
 impl Context {
@@ -20,23 +106,57 @@ impl Context {
         A::Item: AsRef<ffi::OsStr>,
     {
         let arena = Arena::new();
-        Ok(Context {
-            solver: Some(Solver::new(&arena, program, args)?),
+        let known_atoms = Self::init_known_atoms(&arena);
+        let solver = Solver::new(program, args)?;
+
+        let mut ctx = Context {
+            solver: Some(solver),
             arena,
-        })
+            known_atoms,
+        };
+
+        ctx.set_option(":print-success", ctx.true_())?;
+        ctx.set_option(":produce-models", ctx.true_())?;
+
+        Ok(ctx)
     }
 
+    known_atoms![
+        (declare_fun_, "declare-fun"),
+        (bool_, "Bool"),
+        (t_, "true"),
+        (f_, "false"),
+        (not_, "not"),
+        (imp_, "=>"),
+        (and_, "and"),
+        (or_, "or"),
+        (xor_, "xor"),
+        (eq_, "="),
+        (distinct_, "distinct"),
+        (ite_, "ite"),
+        (int_, "Int"),
+        (minus_, "-"),
+        (plus_, "+"),
+        (times_, "*"),
+        (lte_, "<="),
+        (lt_, "<"),
+        (gte_, ">="),
+        (gt_, ">"),
+    ];
+
     pub fn without_solver() -> Self {
+        let arena = Arena::new();
+        let known_atoms = Self::init_known_atoms(&arena);
         Context {
             solver: None,
-            arena: Arena::new(),
+            arena,
+            known_atoms,
         }
     }
 
-    pub fn set_option<K, V>(&mut self, name: K, value: V) -> io::Result<()>
+    pub fn set_option<K>(&mut self, name: K, value: SExpr) -> io::Result<()>
     where
         K: Into<String> + AsRef<str>,
-        V: Into<String> + AsRef<str>,
     {
         let solver = self
             .solver
@@ -82,12 +202,9 @@ impl Context {
         body: SExpr,
     ) -> io::Result<SExpr> {
         let name = self.arena.atom(name);
-        let expr = self.arena.list(vec![
-            self.arena.atom("declare-fun"),
-            name,
-            self.arena.list(args),
-            body,
-        ]);
+        let expr = self
+            .arena
+            .list(vec![self.declare_fun_(), name, self.arena.list(args), body]);
         let solver = self
             .solver
             .as_mut()
@@ -228,18 +345,6 @@ impl Context {
         self.attr(expr, ":named", self.atom(name))
     }
 
-    pub fn and<I: IntoIterator<Item = SExpr>>(&self, items: I) -> SExpr {
-        let mut args = vec![self.atom("and")];
-        args.extend(items);
-        self.list(args)
-    }
-
-    pub fn or<I: IntoIterator<Item = SExpr>>(&self, items: I) -> SExpr {
-        let mut args = vec![self.atom("or")];
-        args.extend(items);
-        self.list(args)
-    }
-
     pub fn i32(&self, val: i32) -> SExpr {
         self.arena.atom(val.to_string())
     }
@@ -248,49 +353,43 @@ impl Context {
         self.arena.atom(val.to_string())
     }
 
-    pub fn not(&self, val: SExpr) -> SExpr {
-        self.arena.list(vec![self.atom("not"), val])
+    /// The `Bool` sort.
+    pub fn bool_sort(&self) -> SExpr {
+        self.bool_()
     }
 
-    pub fn eq(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("="), lhs, rhs])
+    /// The `true` constant.
+    pub fn true_(&self) -> SExpr {
+        self.t_()
     }
 
-    pub fn imp(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("=>"), lhs, rhs])
+    /// The `false` constant.
+    pub fn false_(&self) -> SExpr {
+        self.f_()
     }
 
-    pub fn gt(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom(">"), lhs, rhs])
+    unary!(not, not_);
+    right_assoc!(imp, imp_many, imp_);
+    left_assoc!(and, and_many, and_);
+    left_assoc!(or, or_many, or_);
+    left_assoc!(xor, xor_many, xor_);
+    chainable!(eq, eq_many, eq_);
+    pairwise!(distinct, distinct_many, distinct_);
+    binop!(ite, ite_);
+
+    /// The `Int` sort.
+    pub fn int_sort(&self) -> SExpr {
+        self.int_()
     }
 
-    pub fn gte(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom(">="), lhs, rhs])
-    }
-
-    pub fn lt(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("<"), lhs, rhs])
-    }
-
-    pub fn lte(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("<="), lhs, rhs])
-    }
-
-    pub fn plus(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("+"), lhs, rhs])
-    }
-
-    pub fn negate(&self, val: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("-"), val])
-    }
-
-    pub fn minus(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("-"), lhs, rhs])
-    }
-
-    pub fn times(&self, lhs: SExpr, rhs: SExpr) -> SExpr {
-        self.arena.list(vec![self.arena.atom("*"), lhs, rhs])
-    }
+    binop!(negate, minus_);
+    left_assoc!(sub, sub_many, minus_);
+    left_assoc!(plus, plus_many, plus_);
+    left_assoc!(times, times_many, times_);
+    chainable!(lte, lte_many, lte_);
+    chainable!(lt, lt_many, lt_);
+    chainable!(gt, gt_many, gt_);
+    chainable!(gte, gte_many, gte_);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -308,7 +407,7 @@ pub(crate) struct Solver {
 }
 
 impl Solver {
-    pub fn new<P, A>(arena: &Arena, program: P, args: A) -> io::Result<Self>
+    pub fn new<P, A>(program: P, args: A) -> io::Result<Self>
     where
         P: AsRef<ffi::OsStr>,
         A: IntoIterator,
@@ -322,17 +421,12 @@ impl Solver {
         let stdin = handle.stdin.take().unwrap();
         let stdout = handle.stdout.take().unwrap();
 
-        let mut solver = Self {
+        Ok(Self {
             _handle: handle,
             stdin,
             stdout: io::BufReader::new(stdout).lines(),
             parser: sexpr::Parser::new(),
-        };
-
-        solver.set_option(arena, ":print-success", "true")?;
-        solver.set_option(arena, ":produce-models", "true")?;
-
-        Ok(solver)
+        })
     }
 
     fn send(&mut self, arena: &Arena, expr: SExpr) -> io::Result<()> {
@@ -355,18 +449,13 @@ impl Solver {
         ))
     }
 
-    pub fn set_option<K, V>(&mut self, arena: &Arena, name: K, value: V) -> io::Result<()>
+    pub fn set_option<K>(&mut self, arena: &Arena, name: K, value: SExpr) -> io::Result<()>
     where
         K: Into<String> + AsRef<str>,
-        V: Into<String> + AsRef<str>,
     {
         self.ack_command(
             arena,
-            arena.list(vec![
-                arena.atom("set-option"),
-                arena.atom(name),
-                arena.atom(value),
-            ]),
+            arena.list(vec![arena.atom("set-option"), arena.atom(name), value]),
         )
     }
 

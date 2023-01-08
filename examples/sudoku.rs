@@ -6,7 +6,7 @@ fn main() -> std::io::Result<()> {
     let mut ctx = easy_smt::Context::new("z3", ["-smt2", "-in"])?;
 
     // for helping diagnose unsolvable problems
-    ctx.set_option(":produce-unsat-cores", "true")?;
+    ctx.set_option(":produce-unsat-cores", ctx.true_())?;
 
     let mut cols = Vec::with_capacity(9);
 
@@ -14,8 +14,8 @@ fn main() -> std::io::Result<()> {
     for x in 0..9 {
         let mut col = Vec::with_capacity(9);
         for y in 0..9 {
-            let cell = ctx.declare(&format!("cell_{}_{}", x, y), ctx.atom("Int"))?;
-            ctx.assert(ctx.and([ctx.gt(cell, ctx.i32(0)), ctx.lte(cell, ctx.i32(9))]))?;
+            let cell = ctx.declare(&format!("cell_{}_{}", x, y), ctx.int_sort())?;
+            ctx.assert(ctx.and(ctx.gt(cell, ctx.i32(0)), ctx.lte(cell, ctx.i32(9))))?;
             col.push(cell);
         }
         cols.push(col);
