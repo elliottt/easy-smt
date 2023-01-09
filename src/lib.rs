@@ -1,12 +1,14 @@
 use std::ffi;
-use std::io::{self, BufRead};
-use std::process;
+use std::io;
 
-mod sexpr;
 mod known_atoms;
+mod sexpr;
+mod solver;
 
-use sexpr::Arena;
 use known_atoms::KnownAtoms;
+use sexpr::Arena;
+use solver::Solver;
+
 pub use sexpr::{DisplayExpr, SExpr, SExprData};
 
 macro_rules! variadic {
@@ -160,8 +162,7 @@ impl Context {
         solver.ack_command(
             &self.arena,
             self.atoms.success,
-            self.arena
-                .list(vec![self.atoms.declare_const, name, sort]),
+            self.arena.list(vec![self.atoms.declare_const, name, sort]),
         )?;
         Ok(name)
     }
@@ -325,8 +326,8 @@ impl Context {
                 Ok(res)
             }
 
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            _ => Err(io::Error::new(
+                io::ErrorKind::Other,
                 "Failed to parse solver output",
             )),
         }
@@ -619,68 +620,4 @@ pub enum Response {
     Sat,
     Unsat,
     Unknown,
-}
-
-pub(crate) struct Solver {
-    _handle: process::Child,
-    stdin: process::ChildStdin,
-    stdout: io::Lines<io::BufReader<process::ChildStdout>>,
-    parser: sexpr::Parser,
-}
-
-impl Solver {
-    pub fn new<P, A>(program: P, args: A) -> io::Result<Self>
-    where
-        P: AsRef<ffi::OsStr>,
-        A: IntoIterator,
-        A::Item: AsRef<ffi::OsStr>,
-    {
-        let mut handle = process::Command::new(program)
-            .args(args)
-            .stdin(process::Stdio::piped())
-            .stdout(process::Stdio::piped())
-            .spawn()?;
-        let stdin = handle.stdin.take().unwrap();
-        let stdout = handle.stdout.take().unwrap();
-
-        Ok(Self {
-            _handle: handle,
-            stdin,
-            stdout: io::BufReader::new(stdout).lines(),
-            parser: sexpr::Parser::new(),
-        })
-    }
-
-    fn send(&mut self, arena: &Arena, expr: SExpr) -> io::Result<()> {
-        use io::Write;
-        write!(self.stdin, "{}\n", arena.display(expr))
-    }
-
-    fn recv(&mut self, arena: &Arena) -> io::Result<SExpr> {
-        self.parser.reset();
-
-        while let Some(line) = self.stdout.next() {
-            if let Some(res) = self.parser.parse(arena, &line?) {
-                return Ok(res);
-            }
-        }
-
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Failed to parse solver output",
-        ))
-    }
-
-    fn ack_command(&mut self, arena: &Arena, success: SExpr, c: SExpr) -> io::Result<()> {
-        self.send(arena, c)?;
-        let resp = self.recv(arena)?;
-        if resp == success {
-            Ok(())
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Unexpected result from solver: {}", arena.display(resp)),
-            ))
-        }
-    }
 }
