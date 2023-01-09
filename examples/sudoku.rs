@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use easy_smt::SExpr;
 
 fn main() -> std::io::Result<()> {
+    env_logger::init();
+
     let mut ctx = easy_smt::Context::new("z3", ["-smt2", "-in"])?;
 
     // for helping diagnose unsolvable problems

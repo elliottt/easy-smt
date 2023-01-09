@@ -35,6 +35,7 @@ impl Solver {
 
     pub fn send(&mut self, arena: &Arena, expr: SExpr) -> io::Result<()> {
         use io::Write;
+        log::trace!("-> {}", arena.display(expr));
         write!(self.stdin, "{}\n", arena.display(expr))
     }
 
@@ -42,7 +43,9 @@ impl Solver {
         self.parser.reset();
 
         while let Some(line) = self.stdout.next() {
-            if let Some(res) = self.parser.parse(arena, &line?) {
+            let line = line?;
+            log::trace!("<- {}", line);
+            if let Some(res) = self.parser.parse(arena, &line) {
                 return Ok(res);
             }
         }
