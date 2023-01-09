@@ -1,7 +1,4 @@
-use crate::{
-    sexpr::{Parser, SExpr},
-    Arena,
-};
+use crate::sexpr::{Arena, Parser, SExpr};
 use std::ffi;
 use std::io::{self, BufRead};
 use std::process;

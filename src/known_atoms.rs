@@ -1,4 +1,4 @@
-use crate::{Arena, SExpr};
+use crate::{sexpr::Arena, SExpr};
 
 macro_rules! for_each_known_atom {
     ( $mac:ident ) => {
