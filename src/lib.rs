@@ -92,7 +92,9 @@ macro_rules! define_known_atoms {
     ( $( $id:ident : $atom:expr ; )* ) => {
         pub struct KnownAtoms {
             $(
-                #[doc = stringify!($atom)]
+                #[doc = "The atom: `"]
+                #[doc = $atom]
+                #[doc = "`"]
                 pub $id: SExpr,
             )*
 
