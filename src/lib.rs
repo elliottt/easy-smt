@@ -1,4 +1,4 @@
-#![doc = include!("../README.md")]
+#![doc = include_str!("../README.md")]
 
 mod context;
 mod known_atoms;
