@@ -71,6 +71,67 @@ for (variable, value) in solution {
 # let _ = run();
 ```
 
+## Debugging
+
+### Displaying S-Expressions
+
+Want to display an S-Expression that you've built up to make sure it is what you
+expect? You can use the `easy_smt::Context::display` method:
+
+```rust
+use easy_smt::Context;
+
+let ctx = Context::without_solver();
+
+let my_s_expr = ctx.list(vec![
+    ctx.atom("hi"),
+    ctx.atom("hello"),
+    ctx.i32(42),
+]);
+
+let string = format!("{}", ctx.display(my_s_expr));
+assert_eq!(string, "(hi hello 42)");
+```
+
+### Logging Solver Interactions
+
+Need to debug exactly what is being sent to and received from the underlying
+solver? `easy-smt` uses the `log` crate and logs all communication with the
+solver at the `TRACE` log level.
+
+For example, you can use `env_logger` to see the log messages. Initialize the
+logger at the start of `main`:
+
+```rust
+fn main() {
+    env_logger::init();
+
+    // ...
+}
+```
+
+And then run your program with the `RUST_LOG="easy_smt=trace"` environment
+variable set to see the `TRACE` logs:
+
+```shell
+$ RUST_LOG="easy_smt=trace" cargo run --example sudoku
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (set-option :print-success true)
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (set-option :produce-models true)
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (set-option :produce-unsat-cores true)
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (declare-fun cell_0_0 () Int)
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (assert (and (> cell_0_0 0) (<= cell_0_0 9)))
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (declare-fun cell_0_1 () Int)
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (assert (and (> cell_0_1 0) (<= cell_0_1 9)))
+[2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
+...
+```
+
 ## Inspiration
 
 Inspired by the [`simple-smt`](https://hackage.haskell.org/package/simple-smt)
