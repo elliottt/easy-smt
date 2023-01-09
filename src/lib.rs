@@ -1,3 +1,5 @@
+#![doc = include!("../README.md")]
+
 mod context;
 mod known_atoms;
 mod sexpr;
