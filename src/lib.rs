@@ -50,6 +50,11 @@ known_atoms![
     (unsat, "unsat"),
     (sat, "sat"),
     (unknown, "unknown"),
+    (declare_const, "declare-const"),
+    (declare_datatype, "declare-datatype"),
+    (declare_datatypes, "declare-datatypes"),
+    (par, "par"),
+    (declare_sort, "declare-sort"),
     (declare_fun, "declare-fun"),
     (assert, "assert"),
     (get_model, "get-model"),
@@ -217,27 +222,20 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("set_option requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
-            self.arena.list(vec![self.atoms.set_option(), self.arena.atom(name), value]),
+            self.arena
+                .list(vec![self.atoms.set_option(), self.arena.atom(name), value]),
         )
-    }
-
-    pub fn declare<S: Into<String> + AsRef<str>>(
-        &mut self,
-        name: S,
-        body: SExpr,
-    ) -> io::Result<SExpr> {
-        self.declare_fun(name, vec![], body)
     }
 
     pub fn check(&mut self) -> io::Result<Response> {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("check requires a running solver");
         solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat()]))?;
         let resp = solver.recv(&mut self.arena)?;
         if resp == self.atoms.sat() {
@@ -254,6 +252,92 @@ impl Context {
         }
     }
 
+    pub fn declare_const<S: Into<String> + AsRef<str>>(
+        &mut self,
+        name: S,
+        sort: SExpr,
+    ) -> io::Result<SExpr> {
+        let name = self.atom(name);
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("declare_const requires a running solver");
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success(),
+            self.arena
+                .list(vec![self.atoms.declare_const(), name, sort]),
+        )?;
+        Ok(name)
+    }
+
+    pub fn declare_datatype<S: Into<String> + AsRef<str>>(
+        &mut self,
+        name: S,
+        decl: SExpr,
+    ) -> io::Result<SExpr> {
+        let name = self.atom(name);
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("declare_datatype requires a running solver");
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success(),
+            self.arena
+                .list(vec![self.atoms.declare_datatype(), name, decl]),
+        )?;
+        Ok(name)
+    }
+
+    pub fn declare_datatypes<N, S, D>(&mut self, sorts: S, decls: D) -> io::Result<()>
+    where
+        N: Into<String> + AsRef<str>,
+        S: IntoIterator<Item = (N, i32)>,
+        D: IntoIterator<Item = SExpr>,
+    {
+        let sorts = sorts
+            .into_iter()
+            .map(|(n, i)| self.list(vec![self.atom(n), self.i32(i)]))
+            .collect();
+        let decls = decls.into_iter().collect();
+
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("declare_datatype requires a running solver");
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success(),
+            self.arena.list(vec![
+                self.atoms.declare_datatypes(),
+                self.arena.list(sorts),
+                self.arena.list(decls),
+            ]),
+        )
+    }
+
+    pub fn par<N, S, D>(&self, symbols: S, decls: D) -> SExpr
+    where
+        N: Into<String> + AsRef<str>,
+        S: IntoIterator<Item = N>,
+        D: IntoIterator<Item = SExpr>,
+    {
+        self.list(vec![
+            self.atoms.par(),
+            self.list(symbols.into_iter().map(|n| self.atom(n)).collect()),
+            self.list(decls.into_iter().collect()),
+        ])
+    }
+
+    pub fn declare<S: Into<String> + AsRef<str>>(
+        &mut self,
+        name: S,
+        body: SExpr,
+    ) -> io::Result<SExpr> {
+        self.declare_fun(name, vec![], body)
+    }
+
     pub fn declare_fun<S: Into<String> + AsRef<str>>(
         &mut self,
         name: S,
@@ -264,7 +348,7 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("declare_fun requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
@@ -278,11 +362,31 @@ impl Context {
         Ok(name)
     }
 
+    pub fn declare_sort<S: Into<String> + AsRef<str>>(
+        &mut self,
+        symbol: S,
+        arity: i32,
+    ) -> io::Result<SExpr> {
+        let symbol = self.atom(symbol);
+        let arity = self.i32(arity);
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("declare_sort requires a running solver");
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success(),
+            self.arena
+                .list(vec![self.atoms.declare_sort(), symbol, arity]),
+        )?;
+        Ok(symbol)
+    }
+
     pub fn assert(&mut self, expr: SExpr) -> io::Result<()> {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("assert requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
@@ -294,7 +398,7 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("get_model requires a running solver");
         solver.send(&self.arena, self.arena.list(vec![self.atoms.get_model()]))?;
         solver.recv(&self.arena)
     }
@@ -303,10 +407,11 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("get_value requires a running solver");
         solver.send(
             &self.arena,
-            self.arena.list(vec![self.atoms.get_value(), self.arena.list(vals)]),
+            self.arena
+                .list(vec![self.atoms.get_value(), self.arena.list(vals)]),
         )?;
 
         let resp = solver.recv(&mut self.arena)?;
@@ -337,8 +442,11 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
-        solver.send(&self.arena, self.arena.list(vec![self.atoms.get_unsat_core()]))?;
+            .expect("get_unsat_core requires a running solver");
+        solver.send(
+            &self.arena,
+            self.arena.list(vec![self.atoms.get_unsat_core()]),
+        )?;
         solver.recv(&mut self.arena)
     }
 
@@ -346,11 +454,12 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("set_logic requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
-            self.arena.list(vec![self.atoms.set_logic(), self.arena.atom(logic)]),
+            self.arena
+                .list(vec![self.atoms.set_logic(), self.arena.atom(logic)]),
         )
     }
 
@@ -358,7 +467,7 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("push requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
@@ -370,11 +479,12 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("push_many requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
-            self.arena.list(vec![self.atoms.push(), self.arena.atom(n.to_string())]),
+            self.arena
+                .list(vec![self.atoms.push(), self.arena.atom(n.to_string())]),
         )
     }
 
@@ -382,7 +492,7 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("pop requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
@@ -394,11 +504,12 @@ impl Context {
         let solver = self
             .solver
             .as_mut()
-            .expect("ack_command requires a running solver");
+            .expect("pop_many requires a running solver");
         solver.ack_command(
             &self.arena,
             self.atoms.success(),
-            self.arena.list(vec![self.atoms.pop(), self.arena.atom(n.to_string())]),
+            self.arena
+                .list(vec![self.atoms.pop(), self.arena.atom(n.to_string())]),
         )
     }
 
