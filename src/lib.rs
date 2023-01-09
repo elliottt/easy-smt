@@ -207,6 +207,14 @@ impl Context {
         }
     }
 
+    /// Access "known" atoms.
+    ///
+    /// This lets you skip the is-it-already-interned-or-not checks and hash map
+    /// lookups for certain frequently used atoms.
+    pub fn atoms(&self) -> &KnownAtoms {
+        &self.atoms
+    }
+
     pub fn set_option<K>(&mut self, name: K, value: SExpr) -> io::Result<()>
     where
         K: Into<String> + AsRef<str>,
