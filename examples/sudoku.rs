@@ -5,7 +5,9 @@ use easy_smt::SExpr;
 fn main() -> std::io::Result<()> {
     env_logger::init();
 
-    let mut ctx = easy_smt::Context::new("z3", ["-smt2", "-in"])?;
+    let mut ctx = easy_smt::ContextBuilder::new()
+        .solver("z3", ["-smt2", "-in"])
+        .build()?;
 
     // for helping diagnose unsolvable problems
     ctx.set_option(":produce-unsat-cores", ctx.true_())?;
