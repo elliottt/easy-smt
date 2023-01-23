@@ -59,6 +59,96 @@ macro_rules! pairwise {
     };
 }
 
+#[derive(Default)]
+pub struct ContextBuilder {
+    solver_program_and_args: Option<(ffi::OsString, Vec<ffi::OsString>)>,
+    replay_file: Option<Box<dyn io::Write>>,
+}
+
+impl<'a> ContextBuilder {
+    /// Construct a new builder with the default configuration.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Configure the solver that will be used.
+    ///
+    /// By default, no solver is configured, and any `Context` created will only
+    /// be able to build and display expressions, not assert them or query for
+    /// their satisfiability.
+    pub fn solver<P, A>(&mut self, program: P, args: A) -> &mut Self
+    where
+        P: Into<ffi::OsString>,
+        A: IntoIterator,
+        A::Item: Into<ffi::OsString>,
+    {
+        self.solver_program_and_args =
+            Some((program.into(), args.into_iter().map(|a| a.into()).collect()));
+        self
+    }
+
+    /// Clear the solver configuration, if any.
+    ///
+    /// This returns to the default, no-solver configuration, where any
+    /// `Context` created will only be able to build and display expressions,
+    /// not assert them or query for their satisfiability.
+    pub fn without_solver(&mut self) -> &mut Self {
+        self.solver_program_and_args = None;
+        self
+    }
+
+    /// An optional file (or anything else that is `std::io::Write`-able) where
+    /// all solver queries and commands are tee'd too.
+    ///
+    /// This let's you replay interactions with the solver offline, without
+    /// needing to dynamically rebuild your expressions, queries, or commands.
+    ///
+    /// This is unused if no solver is configured.
+    ///
+    /// By default, there is no replay file configured.
+    pub fn replay_file<W>(&mut self, replay_file: Option<W>) -> &mut Self
+    where
+        W: 'static + io::Write,
+    {
+        self.replay_file = replay_file.map(|w| Box::new(w) as _);
+        self
+    }
+
+    /// Finish configuring the context and build it.
+    pub fn build(&mut self) -> io::Result<Context> {
+        let arena = Arena::new();
+        let atoms = KnownAtoms::new(&arena);
+
+        let solver = if let Some((program, args)) = self.solver_program_and_args.take() {
+            Some(Solver::new(
+                program,
+                args,
+                self.replay_file
+                    .take()
+                    .unwrap_or_else(|| Box::new(io::sink())),
+            )?)
+        } else {
+            None
+        };
+
+        let mut ctx = Context {
+            solver,
+            arena,
+            atoms,
+        };
+
+        if ctx.solver.is_some() {
+            ctx.set_option(":print-success", ctx.true_())?;
+            ctx.set_option(":produce-models", ctx.true_())?;
+        }
+
+        Ok(ctx)
+    }
+}
+
+/// An SMT-LIB 2 context, usually backed by a solver subprocess.
+///
+/// Created via a [`ContextBuilder`][crate::ContextBuilder].
 pub struct Context {
     solver: Option<Solver>,
     arena: Arena,
@@ -66,38 +156,6 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new<P, A>(program: P, args: A) -> io::Result<Self>
-    where
-        P: AsRef<ffi::OsStr>,
-        A: IntoIterator,
-        A::Item: AsRef<ffi::OsStr>,
-    {
-        let arena = Arena::new();
-        let atoms = KnownAtoms::new(&arena);
-        let solver = Solver::new(program, args)?;
-
-        let mut ctx = Context {
-            solver: Some(solver),
-            arena,
-            atoms,
-        };
-
-        ctx.set_option(":print-success", ctx.true_())?;
-        ctx.set_option(":produce-models", ctx.true_())?;
-
-        Ok(ctx)
-    }
-
-    pub fn without_solver() -> Self {
-        let arena = Arena::new();
-        let atoms = KnownAtoms::new(&arena);
-        Context {
-            solver: None,
-            arena,
-            atoms,
-        }
-    }
-
     /// Access "known" atoms.
     ///
     /// This lets you skip the is-it-already-interned-or-not checks and hash map

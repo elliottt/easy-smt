@@ -28,47 +28,48 @@ mode. You just tell `easy-smt` how to spawn the subprocess.
 ## Example
 
 ```rust
-# fn run() -> std::io::Result<()> {
-use easy_smt::{Context, Response};
+use easy_smt::{ContextBuilder, Response};
 
-// Create a new context, backed by a Z3 subprocess.
-let mut ctx = easy_smt::Context::new("z3", ["-smt2", "-in"])?;
+fn main() -> std::io::Result<()> {
+    // Create a new context, backed by a Z3 subprocess.
+    let mut ctx = ContextBuilder::new()
+        .solver("z3", ["-smt2", "-in"])
+        .build()?;
 
-// Declare `x` and `y` variables that are bitvectors of width 32.
-let bv32 = ctx.bit_vec_sort(ctx.i32(32));
-let x = ctx.declare("x", bv32)?;
-let y = ctx.declare("y", bv32)?;
+    // Declare `x` and `y` variables that are bitvectors of width 32.
+    let bv32 = ctx.bit_vec_sort(ctx.i32(32));
+    let x = ctx.declare("x", bv32)?;
+    let y = ctx.declare("y", bv32)?;
 
-// Assert that `x * y = 0x12`.
-ctx.assert(ctx.eq(
-    ctx.bvmul(x, y),
-    ctx.atom("#x00000012"),
-))?;
+    // Assert that `x * y = 0x12`.
+    ctx.assert(ctx.eq(
+        ctx.bvmul(x, y),
+        ctx.atom("#x00000012"),
+    ))?;
 
-// And assert that neither `x` nor `y` is 1.
-ctx.assert(ctx.not(ctx.eq(x, ctx.atom("#x00000001"))))?;
-ctx.assert(ctx.not(ctx.eq(y, ctx.atom("#x00000001"))))?;
+    // And assert that neither `x` nor `y` is 1.
+    ctx.assert(ctx.not(ctx.eq(x, ctx.atom("#x00000001"))))?;
+    ctx.assert(ctx.not(ctx.eq(y, ctx.atom("#x00000001"))))?;
 
-// Check whether the assertions are satisfiable. They should be in this example.
-assert_eq!(ctx.check()?, Response::Sat);
+    // Check whether the assertions are satisfiable. They should be in this example.
+    assert_eq!(ctx.check()?, Response::Sat);
 
-// Print the solution!
-let solution = ctx.get_value(vec![x, y])?;
-for (variable, value) in solution {
-    println!("{} = {}", ctx.display(variable), ctx.display(value));
+    // Print the solution!
+    let solution = ctx.get_value(vec![x, y])?;
+    for (variable, value) in solution {
+        println!("{} = {}", ctx.display(variable), ctx.display(value));
+    }
+    // There are many solutions, but the one I get from Z3 is:
+    //
+    //     x = #x10000012
+    //     y = #x38000001
+    //
+    // Solvers are great at finding edge cases and surprising-to-humans results! In
+    // this case, I would have naively expected something like `x = 2, y = 9` or
+    // `x = 3, y = 6`, but the solver found a solution where the multiplication
+    // wraps around. Neat!
+    Ok(())
 }
-// There are many solutions, but the one I get from Z3 is:
-//
-//     x = #x10000012
-//     y = #x38000001
-//
-// Solvers are great at finding edge cases and surprising-to-humans results! In
-// this case, I would have naively expected something like `x = 2, y = 9` or
-// `x = 3, y = 6`, but the solver found a solution where the multiplication
-// wraps around. Neat!
-# Ok(())
-# }
-# let _ = run();
 ```
 
 ## Debugging
@@ -79,9 +80,9 @@ Want to display an S-Expression that you've built up to make sure it is what you
 expect? You can use the `easy_smt::Context::display` method:
 
 ```rust
-use easy_smt::Context;
+use easy_smt::ContextBuilder;
 
-let ctx = Context::without_solver();
+let ctx = ContextBuilder::new().build().unwrap();
 
 let my_s_expr = ctx.list(vec![
     ctx.atom("hi"),
@@ -130,6 +131,29 @@ $ RUST_LOG="easy_smt=trace" cargo run --example sudoku
 [2023-01-09T23:41:05Z TRACE easy_smt::solver] -> (assert (and (> cell_0_1 0) (<= cell_0_1 9)))
 [2023-01-09T23:41:05Z TRACE easy_smt::solver] <- success
 ...
+```
+
+### Replaying Solver Interactions
+
+You can save all commands that are being sent to the solver to a file that you
+can replay without needing to dynamically rebuild your expressions, assertions,
+and commands.
+
+```rust
+use easy_smt::ContextBuilder;
+
+fn main() -> std::io::Result<()> {
+    let ctx = ContextBuilder::new()
+        // Everything needed to replay the solver session will be written
+        // to `replay.smt2`.
+        .replay_file(Some(std::fs::File::create("replay.smt2")?))
+        .solver("z3", ["-smt2", "-in"])
+        .build()?;
+
+    // ...
+
+    Ok(())
+}
 ```
 
 ## Inspiration

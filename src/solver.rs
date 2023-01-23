@@ -7,16 +7,16 @@ pub(crate) struct Solver {
     _handle: process::Child,
     stdin: process::ChildStdin,
     stdout: io::Lines<io::BufReader<process::ChildStdout>>,
+    replay_file: Box<dyn io::Write>,
     parser: Parser,
 }
 
 impl Solver {
-    pub fn new<P, A>(program: P, args: A) -> io::Result<Self>
-    where
-        P: AsRef<ffi::OsStr>,
-        A: IntoIterator,
-        A::Item: AsRef<ffi::OsStr>,
-    {
+    pub fn new(
+        program: ffi::OsString,
+        args: Vec<ffi::OsString>,
+        replay_file: Box<dyn io::Write>,
+    ) -> io::Result<Self> {
         let mut handle = process::Command::new(program)
             .args(args)
             .stdin(process::Stdio::piped())
@@ -29,6 +29,7 @@ impl Solver {
             _handle: handle,
             stdin,
             stdout: io::BufReader::new(stdout).lines(),
+            replay_file,
             parser: Parser::new(),
         })
     }
@@ -36,7 +37,8 @@ impl Solver {
     pub fn send(&mut self, arena: &Arena, expr: SExpr) -> io::Result<()> {
         use io::Write;
         log::trace!("-> {}", arena.display(expr));
-        write!(self.stdin, "{}\n", arena.display(expr))
+        writeln!(self.replay_file, "{}", arena.display(expr))?;
+        writeln!(self.stdin, "{}", arena.display(expr))
     }
 
     pub fn recv(&mut self, arena: &Arena) -> io::Result<SExpr> {
