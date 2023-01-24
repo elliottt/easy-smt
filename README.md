@@ -41,15 +41,15 @@ fn main() -> std::io::Result<()> {
     let x = ctx.declare("x", bv32)?;
     let y = ctx.declare("y", bv32)?;
 
-    // Assert that `x * y = 0x12`.
+    // Assert that `x * y = 18`.
     ctx.assert(ctx.eq(
         ctx.bvmul(x, y),
-        ctx.atom("#x00000012"),
+        ctx.binary(32, 18),
     ))?;
 
     // And assert that neither `x` nor `y` is 1.
-    ctx.assert(ctx.not(ctx.eq(x, ctx.atom("#x00000001"))))?;
-    ctx.assert(ctx.not(ctx.eq(y, ctx.atom("#x00000001"))))?;
+    ctx.assert(ctx.not(ctx.eq(x, ctx.binary(32, 1))))?;
+    ctx.assert(ctx.not(ctx.eq(y, ctx.binary(32, 1))))?;
 
     // Check whether the assertions are satisfiable. They should be in this example.
     assert_eq!(ctx.check()?, Response::Sat);

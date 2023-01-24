@@ -475,6 +475,12 @@ impl Context {
         self.arena.atom(val.to_string())
     }
 
+    /// Create a binary s-expression of the given bit width.
+    pub fn binary(&self, bit_width: usize, val: impl IntoBinary) -> SExpr {
+        let val = format!("#b{val:0>bit_width$b}");
+        self.arena.atom(val)
+    }
+
     /// Get a `std::fmt::Display` representation of the given s-expression.
     ///
     /// This allows you to print, log, or otherwise format an s-expression
@@ -734,30 +740,58 @@ mod private {
     pub trait IntoNumeral: IntoNumeralSealed {}
     pub trait IntoNumeralSealed: std::fmt::Display {}
 
+    /// A trait implemented by types that can be used to create binaries.
+    pub trait IntoBinary: IntoBinarySealed {}
+    pub trait IntoBinarySealed: std::fmt::Binary {}
+
     impl IntoNumeralSealed for i8 {}
     impl IntoNumeral for i8 {}
+    impl IntoBinarySealed for i8 {}
+    impl IntoBinary for i8 {}
     impl IntoNumeralSealed for i16 {}
     impl IntoNumeral for i16 {}
+    impl IntoBinarySealed for i16 {}
+    impl IntoBinary for i16 {}
     impl IntoNumeralSealed for i32 {}
     impl IntoNumeral for i32 {}
+    impl IntoBinarySealed for i32 {}
+    impl IntoBinary for i32 {}
     impl IntoNumeralSealed for i64 {}
     impl IntoNumeral for i64 {}
+    impl IntoBinarySealed for i64 {}
+    impl IntoBinary for i64 {}
     impl IntoNumeralSealed for i128 {}
     impl IntoNumeral for i128 {}
+    impl IntoBinarySealed for i128 {}
+    impl IntoBinary for i128 {}
     impl IntoNumeralSealed for isize {}
     impl IntoNumeral for isize {}
+    impl IntoBinarySealed for isize {}
+    impl IntoBinary for isize {}
     impl IntoNumeralSealed for u8 {}
     impl IntoNumeral for u8 {}
+    impl IntoBinarySealed for u8 {}
+    impl IntoBinary for u8 {}
     impl IntoNumeralSealed for u16 {}
     impl IntoNumeral for u16 {}
+    impl IntoBinarySealed for u16 {}
+    impl IntoBinary for u16 {}
     impl IntoNumeralSealed for u32 {}
     impl IntoNumeral for u32 {}
+    impl IntoBinarySealed for u32 {}
+    impl IntoBinary for u32 {}
     impl IntoNumeralSealed for u64 {}
     impl IntoNumeral for u64 {}
+    impl IntoBinarySealed for u64 {}
+    impl IntoBinary for u64 {}
     impl IntoNumeralSealed for u128 {}
     impl IntoNumeral for u128 {}
+    impl IntoBinarySealed for u128 {}
+    impl IntoBinary for u128 {}
     impl IntoNumeralSealed for usize {}
     impl IntoNumeral for usize {}
+    impl IntoBinarySealed for usize {}
+    impl IntoBinary for usize {}
 
     /// A trait implemented by types that can be used to create decimals.
     pub trait IntoDecimal: IntoDecimalSealed {}
@@ -768,4 +802,4 @@ mod private {
     impl IntoDecimal for f64 {}
     impl IntoDecimalSealed for f64 {}
 }
-pub use private::{IntoDecimal, IntoNumeral};
+pub use private::{IntoBinary, IntoDecimal, IntoNumeral};
