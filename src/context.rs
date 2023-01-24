@@ -155,15 +155,18 @@ pub struct Context {
     atoms: KnownAtoms,
 }
 
+/// # Solver Commands and Assertions
+///
+/// These methods send a command or assertion to the context's underlying
+/// solver. As such, they involve I/O with a subprocess and are therefore
+/// fallible.
+///
+/// ## Panics
+///
+/// These methods will panic when called if the context was not created with an
+/// underlying solver (via
+/// [`ContextBuilder::solver`][crate::ContextBuilder::solver]).
 impl Context {
-    /// Access "known" atoms.
-    ///
-    /// This lets you skip the is-it-already-interned-or-not checks and hash map
-    /// lookups for certain frequently used atoms.
-    pub fn atoms(&self) -> &KnownAtoms {
-        &self.atoms
-    }
-
     pub fn set_option<K>(&mut self, name: K, value: SExpr) -> io::Result<()>
     where
         K: Into<String> + AsRef<str>,
@@ -263,19 +266,6 @@ impl Context {
                 self.arena.list(decls),
             ]),
         )
-    }
-
-    pub fn par<N, S, D>(&self, symbols: S, decls: D) -> SExpr
-    where
-        N: Into<String> + AsRef<str>,
-        S: IntoIterator<Item = N>,
-        D: IntoIterator<Item = SExpr>,
-    {
-        self.list(vec![
-            self.atoms.par,
-            self.list(symbols.into_iter().map(|n| self.atom(n)).collect()),
-            self.list(decls.into_iter().collect()),
-        ])
     }
 
     pub fn declare<S: Into<String> + AsRef<str>>(
@@ -457,21 +447,73 @@ impl Context {
                 .list(vec![self.atoms.pop, self.arena.atom(n.to_string())]),
         )
     }
+}
 
-    pub fn display(&self, expr: SExpr) -> DisplayExpr {
-        self.arena.display(expr)
-    }
-
+/// # Basic S-Expression Construction and Inspection
+///
+/// These methods provide the foundation of building s-expressions. Even if you
+/// end up using higher-level helper methods most of the time, everything
+/// bottoms out in calls to these methods.
+impl Context {
+    /// Construct a non-list s-expression from the given string.
     pub fn atom(&self, name: impl Into<String> + AsRef<str>) -> SExpr {
         self.arena.atom(name)
     }
 
+    /// Construct a list s-expression from the given elements.
     pub fn list(&self, list: Vec<SExpr>) -> SExpr {
         self.arena.list(list)
     }
 
+    /// Create a numeral s-expression.
+    pub fn numeral(&self, val: impl IntoNumeral) -> SExpr {
+        self.arena.atom(val.to_string())
+    }
+
+    /// Create a decimal s-expression.
+    pub fn decimal(&self, val: impl IntoDecimal) -> SExpr {
+        self.arena.atom(val.to_string())
+    }
+
+    /// Get a `std::fmt::Display` representation of the given s-expression.
+    ///
+    /// This allows you to print, log, or otherwise format an s-expression
+    /// creating within this context.
+    pub fn display(&self, expr: SExpr) -> DisplayExpr {
+        self.arena.display(expr)
+    }
+
+    /// Get the atom or list data for the given s-expression.
+    ///
+    /// This allows you to inspect s-expressions.
     pub fn get(&self, expr: SExpr) -> SExprData {
         self.arena.get(expr)
+    }
+
+    /// Access "known" atoms.
+    ///
+    /// This lets you skip the is-it-already-interned-or-not checks and hash map
+    /// lookups for certain frequently used atoms.
+    pub fn atoms(&self) -> &KnownAtoms {
+        &self.atoms
+    }
+}
+
+/// # Generic and Polymorphic Helpers
+///
+/// Helpers for constructing s-expressions that are not specific to one sort.
+impl Context {
+    pub fn par<N, S, D>(&self, symbols: S, decls: D) -> SExpr
+    where
+        N: Into<String> + AsRef<str>,
+        S: IntoIterator<Item = N>,
+        D: IntoIterator<Item = SExpr>,
+    {
+        self.list(vec![
+            self.atoms.par,
+            self.list(symbols.into_iter().map(|n| self.atom(n)).collect()),
+            self.list(decls.into_iter().collect()),
+        ])
     }
 
     pub fn attr(&self, expr: SExpr, name: impl Into<String> + AsRef<str>, val: SExpr) -> SExpr {
@@ -480,11 +522,6 @@ impl Context {
 
     pub fn named(&self, name: impl Into<String> + AsRef<str>, expr: SExpr) -> SExpr {
         self.attr(expr, ":named", self.atom(name))
-    }
-
-    /// Create a numeral s-expression.
-    pub fn numeral(&self, val: impl IntoNumeral) -> SExpr {
-        self.arena.atom(val.to_string())
     }
 
     /// A let-declaration with a single binding.
@@ -558,6 +595,16 @@ impl Context {
         self.list(args)
     }
 
+    /// Construct an if-then-else expression.
+    pub fn ite(&self, c: SExpr, t: SExpr, e: SExpr) -> SExpr {
+        self.list(vec![self.atoms.ite, c, t, e])
+    }
+}
+
+/// # Bool Helpers
+///
+/// These methods help you construct s-expressions for various bool operations.
+impl Context {
     /// The `Bool` sort.
     pub fn bool_sort(&self) -> SExpr {
         self.atoms.bool
@@ -580,12 +627,12 @@ impl Context {
     left_assoc!(xor, xor_many, xor);
     chainable!(eq, eq_many, eq);
     pairwise!(distinct, distinct_many, distinct);
+}
 
-    /// Construct an if-then-else expression.
-    pub fn ite(&self, c: SExpr, t: SExpr, e: SExpr) -> SExpr {
-        self.list(vec![self.atoms.ite, c, t, e])
-    }
-
+/// # Int Helpers
+///
+/// These methods help you construct s-expressions for various int operations.
+impl Context {
     /// The `Int` sort.
     pub fn int_sort(&self) -> SExpr {
         self.atoms.int
@@ -599,7 +646,12 @@ impl Context {
     chainable!(lt, lt_many, lt);
     chainable!(gt, gt_many, gt);
     chainable!(gte, gte_many, gte);
+}
 
+/// # Array Helpers
+///
+/// These methods help you construct s-expressions for various array operations.
+impl Context {
     /// Construct the array sort with the given index and element types.
     pub fn array_sort(&self, index: SExpr, element: SExpr) -> SExpr {
         self.list(vec![self.atoms.array, index, element])
@@ -614,7 +666,13 @@ impl Context {
     pub fn store(&self, ary: SExpr, index: SExpr, value: SExpr) -> SExpr {
         self.list(vec![self.atoms.store, ary, index, value])
     }
+}
 
+/// # Bit Vector Helpers
+///
+/// These methods help you construct s-expressions for various bit vector
+/// operations.
+impl Context {
     /// Construct a BitVec sort with the given width.
     pub fn bit_vec_sort(&self, width: SExpr) -> SExpr {
         self.list(vec![self.atoms.und, self.atoms.bit_vec, width])
@@ -700,5 +758,14 @@ mod private {
     impl IntoNumeral for u128 {}
     impl IntoNumeralSealed for usize {}
     impl IntoNumeral for usize {}
+
+    /// A trait implemented by types that can be used to create decimals.
+    pub trait IntoDecimal: IntoDecimalSealed {}
+    pub trait IntoDecimalSealed: std::fmt::Display {}
+
+    impl IntoDecimal for f32 {}
+    impl IntoDecimalSealed for f32 {}
+    impl IntoDecimal for f64 {}
+    impl IntoDecimalSealed for f64 {}
 }
-pub use private::IntoNumeral;
+pub use private::{IntoDecimal, IntoNumeral};
