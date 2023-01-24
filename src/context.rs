@@ -246,7 +246,7 @@ impl Context {
     {
         let sorts = sorts
             .into_iter()
-            .map(|(n, i)| self.list(vec![self.atom(n), self.i32(i)]))
+            .map(|(n, i)| self.list(vec![self.atom(n), self.numeral(i)]))
             .collect();
         let decls = decls.into_iter().collect();
 
@@ -316,7 +316,7 @@ impl Context {
         arity: i32,
     ) -> io::Result<SExpr> {
         let symbol = self.atom(symbol);
-        let arity = self.i32(arity);
+        let arity = self.numeral(arity);
         let solver = self
             .solver
             .as_mut()
@@ -482,11 +482,8 @@ impl Context {
         self.attr(expr, ":named", self.atom(name))
     }
 
-    pub fn i32(&self, val: i32) -> SExpr {
-        self.arena.atom(val.to_string())
-    }
-
-    pub fn i64(&self, val: i64) -> SExpr {
+    /// Create a numeral s-expression.
+    pub fn numeral(&self, val: impl IntoNumeral) -> SExpr {
         self.arena.atom(val.to_string())
     }
 
@@ -634,8 +631,8 @@ impl Context {
             self.list(vec![
                 self.atoms.und,
                 self.atoms.extract,
-                self.i32(i),
-                self.i32(j),
+                self.numeral(i),
+                self.numeral(j),
             ]),
             bv,
         ])
@@ -673,3 +670,35 @@ pub enum Response {
     Unsat,
     Unknown,
 }
+
+mod private {
+    /// A trait implemented by types that can be used to create numerals.
+    pub trait IntoNumeral: IntoNumeralSealed {}
+    pub trait IntoNumeralSealed: std::fmt::Display {}
+
+    impl IntoNumeralSealed for i8 {}
+    impl IntoNumeral for i8 {}
+    impl IntoNumeralSealed for i16 {}
+    impl IntoNumeral for i16 {}
+    impl IntoNumeralSealed for i32 {}
+    impl IntoNumeral for i32 {}
+    impl IntoNumeralSealed for i64 {}
+    impl IntoNumeral for i64 {}
+    impl IntoNumeralSealed for i128 {}
+    impl IntoNumeral for i128 {}
+    impl IntoNumeralSealed for isize {}
+    impl IntoNumeral for isize {}
+    impl IntoNumeralSealed for u8 {}
+    impl IntoNumeral for u8 {}
+    impl IntoNumeralSealed for u16 {}
+    impl IntoNumeral for u16 {}
+    impl IntoNumeralSealed for u32 {}
+    impl IntoNumeral for u32 {}
+    impl IntoNumeralSealed for u64 {}
+    impl IntoNumeral for u64 {}
+    impl IntoNumeralSealed for u128 {}
+    impl IntoNumeral for u128 {}
+    impl IntoNumeralSealed for usize {}
+    impl IntoNumeral for usize {}
+}
+pub use private::IntoNumeral;

@@ -5,5 +5,5 @@ mod known_atoms;
 mod sexpr;
 mod solver;
 
-pub use context::{Context, ContextBuilder, Response};
+pub use context::{Context, ContextBuilder, Response, IntoNumeral};
 pub use sexpr::{DisplayExpr, SExpr, SExprData};

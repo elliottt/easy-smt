@@ -19,7 +19,7 @@ fn main() -> std::io::Result<()> {
         let mut col = Vec::with_capacity(9);
         for y in 0..9 {
             let cell = ctx.declare(&format!("cell_{}_{}", x, y), ctx.int_sort())?;
-            ctx.assert(ctx.and(ctx.gt(cell, ctx.i32(0)), ctx.lte(cell, ctx.i32(9))))?;
+            ctx.assert(ctx.and(ctx.gt(cell, ctx.numeral(0)), ctx.lte(cell, ctx.numeral(9))))?;
             col.push(cell);
         }
         cols.push(col);
@@ -83,7 +83,7 @@ fn main() -> std::io::Result<()> {
     let mut set = |x: usize, y: usize, val: i32| {
         ctx.assert(ctx.named(
             format!("input_{}_{}", x, y),
-            ctx.eq(cols[x][y], ctx.i32(val)),
+            ctx.eq(cols[x][y], ctx.numeral(val)),
         ))
     };
     set(0, 0, 5)?;

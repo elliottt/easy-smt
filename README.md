@@ -37,7 +37,7 @@ fn main() -> std::io::Result<()> {
         .build()?;
 
     // Declare `x` and `y` variables that are bitvectors of width 32.
-    let bv32 = ctx.bit_vec_sort(ctx.i32(32));
+    let bv32 = ctx.bit_vec_sort(ctx.numeral(32));
     let x = ctx.declare("x", bv32)?;
     let y = ctx.declare("y", bv32)?;
 
@@ -87,7 +87,7 @@ let ctx = ContextBuilder::new().build().unwrap();
 let my_s_expr = ctx.list(vec![
     ctx.atom("hi"),
     ctx.atom("hello"),
-    ctx.i32(42),
+    ctx.numeral(42),
 ]);
 
 let string = format!("{}", ctx.display(my_s_expr));
