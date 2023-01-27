@@ -1,6 +1,10 @@
 [package]
 name = "easy-smt"
 version = "0.1.0"
+authors = [
+    "Trevor Elliott <awesomelyawesome@gmail.com>",
+    "Nick Fitzgerald <fitzgen@gmail.com>",
+]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 keywords = ["smt"]
