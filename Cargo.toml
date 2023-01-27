@@ -10,6 +10,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["smt"]
 description = "Easily interact with an smt solver as a subprocess"
 repository = "https://github.com/elliottt/easy-smt"
+readme = "README.md"
 
 [dependencies]
 log = "0.4.17"
