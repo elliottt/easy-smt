@@ -2,6 +2,10 @@
 name = "easy-smt"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+keywords = ["smt"]
+description = "Easily interact with an smt solver as a subprocess"
+repository = "https://github.com/elliottt/easy-smt"
 
 [dependencies]
 log = "0.4.17"
