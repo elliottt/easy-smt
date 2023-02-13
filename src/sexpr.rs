@@ -120,10 +120,103 @@ impl Arena {
     }
 }
 
+/// The data contents of an [`SExpr`][crate::SExpr].
+///
+/// ## Converting `SExprData` to an Integer
+///
+/// There are `TryFrom<SExprData>` implementations for common integer types that
+/// you can use:
+///
+/// ```
+/// let mut ctx = easy_smt::ContextBuilder::new().build().unwrap();
+///
+/// let neg_one = ctx.binary(8, -1_i8);
+/// assert_eq!(ctx.display(neg_one).to_string(), "#b11111111");
+///
+/// let x = u8::try_from(ctx.get(neg_one)).unwrap();
+/// assert_eq!(x, 0xff);
+/// ```
 pub enum SExprData<'a> {
     Atom(&'a str),
     List(&'a [SExpr]),
 }
+
+/// An error which can be returned when trying to interpret an s-expr as an
+/// integer.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum IntFromSExprError {
+    /// The s-expr is a list, not an atom, and therefore cannot be converted to
+    /// an integer.
+    NotAnAtom,
+
+    /// There was an error parsing the atom as an integer.
+    ParseIntError(std::num::ParseIntError),
+}
+
+impl std::fmt::Display for IntFromSExprError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IntFromSExprError::NotAnAtom => write!(
+                f,
+                "The s-expr is a list, not an atom, and \
+                 therefore cannot be converted to an integer."
+            ),
+            IntFromSExprError::ParseIntError(_) => {
+                write!(f, "There wasn an error parsing the atom as an integer.")
+            }
+        }
+    }
+}
+
+impl std::error::Error for IntFromSExprError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            IntFromSExprError::NotAnAtom => None,
+            IntFromSExprError::ParseIntError(inner) => Some(inner as _),
+        }
+    }
+}
+
+impl From<std::num::ParseIntError> for IntFromSExprError {
+    fn from(e: std::num::ParseIntError) -> Self {
+        IntFromSExprError::ParseIntError(e)
+    }
+}
+
+macro_rules! impl_try_from_int {
+    ( $( $ty:ty )* ) => {
+        $(
+            impl TryFrom<SExprData<'_>> for $ty {
+                type Error = IntFromSExprError;
+
+                fn try_from(value: SExprData<'_>) -> Result<Self, Self::Error> {
+                    match value {
+                        SExprData::Atom(a) => {
+                            if a.starts_with("#x") {
+                                let a = &a[2..];
+                                let x = <$ty>::from_str_radix(a, 16)?;
+                                return Ok(x);
+                            }
+
+                            if a.starts_with("#b") {
+                                let a = &a[2..];
+                                let x = <$ty>::from_str_radix(a, 2)?;
+                                return Ok(x);
+                            }
+
+                            let x = <$ty>::from_str_radix(a, 10)?;
+                            Ok(x)
+                        }
+                        SExprData::List(_) => Err(IntFromSExprError::NotAnAtom),
+                    }
+                }
+            }
+        )*
+    };
+}
+
+impl_try_from_int!(u8 u16 u32 u64 u128 usize);
 
 pub struct DisplayExpr<'a> {
     arena: &'a Arena,
