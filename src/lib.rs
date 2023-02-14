@@ -7,4 +7,4 @@ mod solver;
 
 pub use context::{Context, ContextBuilder, IntoBinary, IntoDecimal, IntoNumeral, Response};
 pub use known_atoms::KnownAtoms;
-pub use sexpr::{DisplayExpr, SExpr, SExprData};
+pub use sexpr::{DisplayExpr, IntFromSExprError, SExpr, SExprData};
