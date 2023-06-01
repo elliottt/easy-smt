@@ -665,6 +665,9 @@ impl Context {
     left_assoc!(sub, sub_many, minus);
     left_assoc!(plus, plus_many, plus);
     left_assoc!(times, times_many, times);
+    left_assoc!(div, div_many, div);
+    left_assoc!(modulo, modulo_many, modulo);
+    left_assoc!(rem, rem_many, rem);
     chainable!(lte, lte_many, lte);
     chainable!(lt, lt_many, lt);
     chainable!(gt, gt_many, gt);

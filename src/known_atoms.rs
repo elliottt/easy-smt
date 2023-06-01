@@ -38,6 +38,9 @@ macro_rules! for_each_known_atom {
             minus: "-";
             plus: "+";
             times: "*";
+            div: "div";
+            modulo: "mod";
+            rem: "rem";
             lte: "<=";
             lt: "<";
             gte: ">=";
