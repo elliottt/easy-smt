@@ -74,7 +74,7 @@ pub struct ContextBuilder {
     replay_file: Option<Box<dyn io::Write>>,
 }
 
-impl<'a> ContextBuilder {
+impl ContextBuilder {
     /// Construct a new builder with the default configuration.
     pub fn new() -> Self {
         Self::default()
