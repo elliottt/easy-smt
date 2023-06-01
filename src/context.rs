@@ -198,7 +198,7 @@ impl Context {
             .as_mut()
             .expect("check requires a running solver");
         solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat]))?;
-        let resp = solver.recv(&mut self.arena)?;
+        let resp = solver.recv(&self.arena)?;
         if resp == self.atoms.sat {
             Ok(Response::Sat)
         } else if resp == self.atoms.unsat {
@@ -361,7 +361,7 @@ impl Context {
                 .list(vec![self.atoms.get_value, self.arena.list(vals)]),
         )?;
 
-        let resp = solver.recv(&mut self.arena)?;
+        let resp = solver.recv(&self.arena)?;
         match self.arena.get(resp) {
             SExprData::List(pairs) => {
                 let mut res = Vec::with_capacity(pairs.len());
@@ -394,7 +394,7 @@ impl Context {
             &self.arena,
             self.arena.list(vec![self.atoms.get_unsat_core]),
         )?;
-        solver.recv(&mut self.arena)
+        solver.recv(&self.arena)
     }
 
     pub fn set_logic<L: Into<String> + AsRef<str>>(&mut self, logic: L) -> io::Result<()> {
