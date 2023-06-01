@@ -279,14 +279,12 @@ impl Context {
         )
     }
 
-    /// Declares a unit value of the given sort
+    /// Declares an unconstrained value of the given sort
     pub fn declare<S: Into<String> + AsRef<str>>(
         &mut self,
         name: S,
         sort: SExpr,
     ) -> io::Result<SExpr> {
-        // TODO(rachit): This is exactly what SMTLIB's declare-const does. We
-        // should either remove this or [Self::declare_const].
         self.declare_fun(name, vec![], sort)
     }
 
