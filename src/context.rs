@@ -494,6 +494,10 @@ impl Context {
     ///
     /// This allows you to print, log, or otherwise format an s-expression
     /// creating within this context.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
     pub fn display(&self, expr: SExpr) -> DisplayExpr {
         self.arena.display(expr)
     }
@@ -501,6 +505,10 @@ impl Context {
     /// Get the atom or list data for the given s-expression.
     ///
     /// This allows you to inspect s-expressions.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
     pub fn get(&self, expr: SExpr) -> SExprData {
         self.arena.get(expr)
     }
@@ -836,5 +844,19 @@ mod tests {
             ctx.imp_many([ctx.true_(), ctx.false_()]),
             "(=> true false)"
         );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic]
+    fn sexpr_with_wrong_context() {
+        let ctx1 = ContextBuilder::new().build().unwrap();
+        let ctx2 = ContextBuilder::new().build().unwrap();
+
+        let pizza1 = ctx1.atom("pizza");
+        let _pizza2 = ctx2.atom("pizza");
+
+        // This should trigger a panic in debug builds.
+        let _ = ctx2.get(pizza1);
     }
 }

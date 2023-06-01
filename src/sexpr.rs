@@ -1,25 +1,65 @@
 use std::{cell::RefCell, collections::HashMap};
 
+#[cfg(debug_assertions)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ArenaId(u32);
+
+#[cfg(not(debug_assertions))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ArenaId;
+
+impl ArenaId {
+    fn new() -> ArenaId {
+        #[cfg(debug_assertions)]
+        {
+            use std::sync::atomic::{AtomicU32, Ordering};
+            static ARENA_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+            let id = ARENA_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+            ArenaId(id)
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            ArenaId
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SExpr(u32);
+pub struct SExpr {
+    // The index of this `SExpr`'s data within `ArenaInner::atoms` or
+    // `ArenaInner::lists`. If the high bit is set, this is a list, if it is
+    // unset it is an atom.
+    index: u32,
+
+    // The ID of the arena that this `SExpr` is associated with. Used for debug
+    // assertions.
+    arena_id: ArenaId,
+}
 
 impl SExpr {
+    /// Is this `SExpr` an atom?
     pub fn is_atom(&self) -> bool {
-        self.0 & (1 << 31) == 0
+        self.index & (1 << 31) == 0
     }
 
-    fn atom(ix: u32) -> Self {
-        assert!(ix < u32::MAX);
-        SExpr(ix)
+    /// Is this `SExpr` a list?
+    pub fn is_list(&self) -> bool {
+        self.index & (1 << 31) == 1
     }
 
-    fn list(ix: u32) -> Self {
-        assert!(ix < u32::MAX);
-        SExpr(ix | (1 << 31))
+    fn atom(index: u32, arena_id: ArenaId) -> Self {
+        assert!(index < u32::MAX);
+        SExpr { index, arena_id }
+    }
+
+    fn list(index: u32, arena_id: ArenaId) -> Self {
+        assert!(index < u32::MAX);
+        let index = index | (1 << 31);
+        SExpr { index, arena_id }
     }
 
     fn index(&self) -> usize {
-        (self.0 & !(1 << 31)) as usize
+        (self.index & !(1 << 31)) as usize
     }
 }
 
@@ -35,8 +75,11 @@ impl std::fmt::Debug for SExpr {
     }
 }
 
-#[derive(Default)]
 struct ArenaInner {
+    /// The ID of this Arena. Used for debug asserts that any given `SExpr`
+    /// belongs to this arena.
+    id: ArenaId,
+
     /// Interned strings.
     atoms: Vec<String>,
 
@@ -55,6 +98,7 @@ pub(crate) struct Arena(RefCell<ArenaInner>);
 impl Arena {
     pub fn new() -> Self {
         Self(RefCell::new(ArenaInner {
+            id: ArenaId::new(),
             atoms: Vec::new(),
             atom_map: HashMap::new(),
             lists: Vec::new(),
@@ -68,7 +112,7 @@ impl Arena {
             *sexpr
         } else {
             let ix = inner.atoms.len();
-            let sexpr = SExpr::atom(ix as u32);
+            let sexpr = SExpr::atom(ix as u32, inner.id);
 
             let name: String = name.into();
 
@@ -88,7 +132,7 @@ impl Arena {
             *sexpr
         } else {
             let ix = inner.lists.len();
-            let sexpr = SExpr::list(ix as u32);
+            let sexpr = SExpr::list(ix as u32, inner.id);
 
             // Safety argument: the name will live as long as the context as it is inserted into
             // the vector below and never removed or resized.
@@ -106,6 +150,13 @@ impl Arena {
 
     pub fn get(&self, expr: SExpr) -> SExprData<'_> {
         let inner = self.0.borrow();
+
+        debug_assert_eq!(
+            inner.id, expr.arena_id,
+            "Use of an `SExpr` with the wrong `Context`! An `SExpr` may only be \
+             used with the `Context` from which it was created!"
+        );
+
         if expr.is_atom() {
             // Safety argument: the data will live as long as the containing context, and is
             // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
