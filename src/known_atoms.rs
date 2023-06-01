@@ -83,6 +83,7 @@ macro_rules! for_each_known_atom {
 
 macro_rules! define_known_atoms {
     ( $( $id:ident : $atom:expr ; )* ) => {
+        #[non_exhaustive]
         pub struct KnownAtoms {
             $(
                 #[doc = "The atom: `"]
@@ -90,17 +91,12 @@ macro_rules! define_known_atoms {
                 #[doc = "`"]
                 pub $id: SExpr,
             )*
-
-            // One non-`pub` field so that `KnownAtoms` cannot be constructed or
-            // exhaustively matched.
-            _private: (),
         }
 
         impl KnownAtoms {
             pub(crate) fn new(arena: &Arena) -> Self {
                 KnownAtoms {
                     $( $id: arena.atom($atom), )*
-                    _private: (),
                 }
             }
         }
