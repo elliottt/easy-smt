@@ -13,6 +13,7 @@ macro_rules! for_each_known_atom {
             par: "par";
             declare_sort: "declare-sort";
             declare_fun: "declare-fun";
+            define_fun: "define-fun";
             assert: "assert";
             get_model: "get-model";
             get_value: "get-value";
