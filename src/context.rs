@@ -192,6 +192,7 @@ impl Context {
         )
     }
 
+    /// Assert `check-sat` for the current context.
     pub fn check(&mut self) -> io::Result<Response> {
         let solver = self
             .solver
@@ -213,6 +214,7 @@ impl Context {
         }
     }
 
+    /// Declare a new constant with the provided sort
     pub fn declare_const<S: Into<String> + AsRef<str>>(
         &mut self,
         name: S,
@@ -277,19 +279,21 @@ impl Context {
         )
     }
 
+    /// Declares an unconstrained value of the given sort
     pub fn declare<S: Into<String> + AsRef<str>>(
         &mut self,
         name: S,
-        body: SExpr,
+        sort: SExpr,
     ) -> io::Result<SExpr> {
-        self.declare_fun(name, vec![], body)
+        self.declare_fun(name, vec![], sort)
     }
 
+    /// Declares a new, uninterpreted function symbol.
     pub fn declare_fun<S: Into<String> + AsRef<str>>(
         &mut self,
         name: S,
         args: Vec<SExpr>,
-        body: SExpr,
+        out: SExpr,
     ) -> io::Result<SExpr> {
         let name = self.atom(name);
         let solver = self
@@ -303,10 +307,53 @@ impl Context {
                 self.atoms.declare_fun,
                 name,
                 self.arena.list(args),
+                out,
+            ]),
+        )?;
+        Ok(name)
+    }
+
+    /// Defines a new function with a body.
+    pub fn define_fun<S: Into<String> + AsRef<str>>(
+        &mut self,
+        name: S,
+        args: Vec<(S, SExpr)>,
+        out: SExpr,
+        body: SExpr,
+    ) -> io::Result<SExpr> {
+        let name = self.atom(name);
+        let args = args
+            .into_iter()
+            .map(|(n, s)| self.list(vec![self.atom(n), s]))
+            .collect();
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("define_fun requires a running solver");
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success,
+            self.arena.list(vec![
+                self.atoms.define_fun,
+                name,
+                self.arena.list(args),
+                out,
                 body,
             ]),
         )?;
         Ok(name)
+    }
+
+    /// Define a constant with a body with a value.
+    /// This is a convenience wrapper over [Self::define_fun] since constants
+    /// are nullary functions.
+    pub fn define_const<S: Into<String> + AsRef<str>>(
+        &mut self,
+        name: S,
+        out: SExpr,
+        body: SExpr,
+    ) -> io::Result<SExpr> {
+        self.define_fun(name, vec![], out, body)
     }
 
     pub fn declare_sort<S: Into<String> + AsRef<str>>(
@@ -341,6 +388,7 @@ impl Context {
         )
     }
 
+    /// Get a model out from the solver. This is only meaningful after a `check-sat` query.
     pub fn get_model(&mut self) -> io::Result<SExpr> {
         let solver = self
             .solver
@@ -350,6 +398,7 @@ impl Context {
         solver.recv(&self.arena)
     }
 
+    /// Get bindings for values in the model. This is only meaningful after a `check-sat` query.
     pub fn get_value(&mut self, vals: Vec<SExpr>) -> io::Result<Vec<(SExpr, SExpr)>> {
         let solver = self
             .solver
@@ -410,6 +459,7 @@ impl Context {
         )
     }
 
+    /// Push a new context frame in the solver. Same as SMTLIB's `push` command.
     pub fn push(&mut self) -> io::Result<()> {
         let solver = self
             .solver
@@ -435,6 +485,7 @@ impl Context {
         )
     }
 
+    /// Pop a context frame in the solver. Same as SMTLIB's `pop` command.
     pub fn pop(&mut self) -> io::Result<()> {
         let solver = self.solver.as_mut().expect("pop requires a running solver");
         solver.ack_command(
@@ -665,6 +716,9 @@ impl Context {
     left_assoc!(sub, sub_many, minus);
     left_assoc!(plus, plus_many, plus);
     left_assoc!(times, times_many, times);
+    left_assoc!(div, div_many, div);
+    left_assoc!(modulo, modulo_many, modulo);
+    left_assoc!(rem, rem_many, rem);
     chainable!(lte, lte_many, lte);
     chainable!(lt, lt_many, lt);
     chainable!(gt, gt_many, gt);
