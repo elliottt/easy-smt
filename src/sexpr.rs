@@ -44,7 +44,7 @@ impl SExpr {
 
     /// Is this `SExpr` a list?
     pub fn is_list(&self) -> bool {
-        self.index & (1 << 31) == 1
+        !self.is_atom()
     }
 
     fn atom(index: u32, arena_id: ArenaId) -> Self {
@@ -424,5 +424,30 @@ impl<'a> Iterator for Lexer<'a> {
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ContextBuilder;
+
+    #[test]
+    fn is_atom() {
+        let ctx = ContextBuilder::new().build().unwrap();
+        let pizza = ctx.atom("pizza");
+        assert!(pizza.is_atom());
+        assert!(!pizza.is_list());
+    }
+
+    #[test]
+    fn is_list() {
+        let ctx = ContextBuilder::new().build().unwrap();
+        let toppings = ctx.list(vec![
+            ctx.atom("tomato-sauce"),
+            ctx.atom("mozzarella"),
+            ctx.atom("basil"),
+        ]);
+        assert!(toppings.is_list());
+        assert!(!toppings.is_atom());
     }
 }
