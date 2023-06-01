@@ -44,7 +44,7 @@ impl Solver {
     pub fn recv(&mut self, arena: &Arena) -> io::Result<SExpr> {
         self.parser.reset();
 
-        while let Some(line) = self.stdout.next() {
+        for line in self.stdout.by_ref() {
             let line = line?;
             log::trace!("<- {}", line);
             if let Some(res) = self.parser.parse(arena, &line) {

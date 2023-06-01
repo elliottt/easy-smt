@@ -244,19 +244,17 @@ macro_rules! impl_try_from_int {
                 fn try_from(value: SExprData<'_>) -> Result<Self, Self::Error> {
                     match value {
                         SExprData::Atom(a) => {
-                            if a.starts_with("#x") {
-                                let a = &a[2..];
+                            if let Some(a) = a.strip_prefix("#x") {
                                 let x = <$ty>::from_str_radix(a, 16)?;
                                 return Ok(x);
                             }
 
-                            if a.starts_with("#b") {
-                                let a = &a[2..];
+                            if let Some(a) = a.strip_prefix("#b") {
                                 let x = <$ty>::from_str_radix(a, 2)?;
                                 return Ok(x);
                             }
 
-                            let x = <$ty>::from_str_radix(a, 10)?;
+                            let x = a.parse::<$ty>()?;
                             Ok(x)
                         }
                         SExprData::List(_) => Err(IntFromSExprError::NotAnAtom),
@@ -334,8 +332,8 @@ impl Parser {
     }
 
     pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Option<SExpr> {
-        let mut lexer = Lexer::new(bytes);
-        while let Some(token) = lexer.next() {
+        let lexer = Lexer::new(bytes);
+        for token in lexer {
             match token {
                 Token::Symbol(sym) => {
                     let res = self.atom(arena, sym);
