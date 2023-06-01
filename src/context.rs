@@ -369,7 +369,7 @@ impl Context {
                     match self.arena.get(*expr) {
                         SExprData::List(pair) => {
                             assert_eq!(2, pair.len());
-                            res.push((pair[0].clone(), pair[1].clone()));
+                            res.push((pair[0], pair[1]));
                         }
                         _ => unreachable!(),
                     }
