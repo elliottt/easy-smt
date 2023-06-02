@@ -74,7 +74,7 @@ pub struct ContextBuilder {
     replay_file: Option<Box<dyn io::Write>>,
 }
 
-impl<'a> ContextBuilder {
+impl ContextBuilder {
     /// Construct a new builder with the default configuration.
     pub fn new() -> Self {
         Self::default()
@@ -199,7 +199,7 @@ impl Context {
             .as_mut()
             .expect("check requires a running solver");
         solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat]))?;
-        let resp = solver.recv(&mut self.arena)?;
+        let resp = solver.recv(&self.arena)?;
         if resp == self.atoms.sat {
             Ok(Response::Sat)
         } else if resp == self.atoms.unsat {
@@ -410,7 +410,7 @@ impl Context {
                 .list(vec![self.atoms.get_value, self.arena.list(vals)]),
         )?;
 
-        let resp = solver.recv(&mut self.arena)?;
+        let resp = solver.recv(&self.arena)?;
         match self.arena.get(resp) {
             SExprData::List(pairs) => {
                 let mut res = Vec::with_capacity(pairs.len());
@@ -418,7 +418,7 @@ impl Context {
                     match self.arena.get(*expr) {
                         SExprData::List(pair) => {
                             assert_eq!(2, pair.len());
-                            res.push((pair[0].clone(), pair[1].clone()));
+                            res.push((pair[0], pair[1]));
                         }
                         _ => unreachable!(),
                     }
@@ -443,7 +443,7 @@ impl Context {
             &self.arena,
             self.arena.list(vec![self.atoms.get_unsat_core]),
         )?;
-        solver.recv(&mut self.arena)
+        solver.recv(&self.arena)
     }
 
     pub fn set_logic<L: Into<String> + AsRef<str>>(&mut self, logic: L) -> io::Result<()> {
