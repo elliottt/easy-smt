@@ -18,7 +18,7 @@ fn main() -> std::io::Result<()> {
     for x in 0..9 {
         let mut col = Vec::with_capacity(9);
         for y in 0..9 {
-            let cell = ctx.declare(&format!("cell_{}_{}", x, y), ctx.int_sort())?;
+            let cell = ctx.declare_const(&format!("cell_{}_{}", x, y), ctx.int_sort())?;
             ctx.assert(ctx.and(ctx.gt(cell, ctx.numeral(0)), ctx.lte(cell, ctx.numeral(9))))?;
             col.push(cell);
         }
