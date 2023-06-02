@@ -28,7 +28,7 @@ fn main() -> std::io::Result<()> {
     // assert row and column constraints
     for (x, col) in cols.iter().enumerate() {
         for y in 0..9 {
-            let cell = col[y].clone();
+            let cell = col[y];
             for i in y + 1..9 {
                 ctx.assert(ctx.named(
                     format!("col_{}_{}_{}", x, y, i),
@@ -40,7 +40,7 @@ fn main() -> std::io::Result<()> {
 
     for y in 0..9 {
         for x in 0..9 {
-            let cell = cols[x][y].clone();
+            let cell = cols[x][y];
             for i in x + 1..9 {
                 ctx.assert(ctx.named(
                     format!("row_{}_{}_{}", y, x, i),
