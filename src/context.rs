@@ -391,6 +391,10 @@ impl Context {
 
     /// Get bindings for values in the model. This is only meaningful after a `check-sat` query.
     pub fn get_value(&mut self, vals: Vec<SExpr>) -> io::Result<Vec<(SExpr, SExpr)>> {
+        if vals.is_empty() {
+            return Ok(vec![]);
+        }
+
         let solver = self
             .solver
             .as_mut()
