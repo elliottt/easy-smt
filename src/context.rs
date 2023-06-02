@@ -400,6 +400,8 @@ impl Context {
 
     /// Get bindings for values in the model. This is only meaningful after a `check-sat` query.
     pub fn get_value(&mut self, vals: Vec<SExpr>) -> io::Result<Vec<(SExpr, SExpr)>> {
+        assert!(!vals.is_empty(), "get_value requires at least one value");
+
         let solver = self
             .solver
             .as_mut()
