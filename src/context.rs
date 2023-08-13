@@ -223,7 +223,24 @@ impl Context {
 
     /// Assert `check-sat` for the current context.
     pub fn check(&mut self) -> io::Result<Response> {
-        self.check_assuming([])
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("check requires a running solver");
+        solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat]))?;
+        let resp = solver.recv(&self.arena)?;
+        if resp == self.atoms.sat {
+            Ok(Response::Sat)
+        } else if resp == self.atoms.unsat {
+            Ok(Response::Unsat)
+        } else if resp == self.atoms.unknown {
+            Ok(Response::Unknown)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Unexpected result from solver: {}", self.display(resp)),
+            ))
+        }
     }
 
     /// Declare a new constant with the provided sort
