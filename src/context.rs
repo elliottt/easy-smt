@@ -201,13 +201,11 @@ impl Context {
             .solver
             .as_mut()
             .expect("check requires a running solver");
-        let arg = self.arena.list(
-            Some(self.atoms.check_sat_assuming)
-                .into_iter()
-                .chain(props.into_iter())
-                .collect(),
-        );
-        solver.send(&self.arena, arg)?;
+        let args = self.arena.list(props.into_iter().collect());
+        solver.send(
+            &self.arena,
+            self.arena.list(vec![self.atoms.check_sat_assuming, args]),
+        )?;
         let resp = solver.recv(&self.arena)?;
         if resp == self.atoms.sat {
             Ok(Response::Sat)
