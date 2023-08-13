@@ -192,13 +192,22 @@ impl Context {
         )
     }
 
-    /// Assert `check-sat` for the current context.
-    pub fn check(&mut self) -> io::Result<Response> {
+    /// Assert `check-sat-assuming` with the given list of assumptions.
+    pub fn check_assuming(
+        &mut self,
+        props: impl IntoIterator<Item = SExpr>,
+    ) -> io::Result<Response> {
         let solver = self
             .solver
             .as_mut()
             .expect("check requires a running solver");
-        solver.send(&self.arena, self.arena.list(vec![self.atoms.check_sat]))?;
+        let arg = self.arena.list(
+            Some(self.atoms.check_sat_assuming)
+                .into_iter()
+                .chain(props.into_iter())
+                .collect(),
+        );
+        solver.send(&self.arena, arg)?;
         let resp = solver.recv(&self.arena)?;
         if resp == self.atoms.sat {
             Ok(Response::Sat)
@@ -212,6 +221,11 @@ impl Context {
                 format!("Unexpected result from solver: {}", self.display(resp)),
             ))
         }
+    }
+
+    /// Assert `check-sat` for the current context.
+    pub fn check(&mut self) -> io::Result<Response> {
+        self.check_assuming([])
     }
 
     /// Declare a new constant with the provided sort
