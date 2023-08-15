@@ -4,6 +4,7 @@ macro_rules! for_each_known_atom {
     ( $mac:ident ) => {
         $mac! {
             check_sat: "check-sat";
+            check_sat_assuming: "check-sat-assuming";
             unsat: "unsat";
             sat: "sat";
             unknown: "unknown";

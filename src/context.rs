@@ -192,6 +192,35 @@ impl Context {
         )
     }
 
+    /// Assert `check-sat-assuming` with the given list of assumptions.
+    pub fn check_assuming(
+        &mut self,
+        props: impl IntoIterator<Item = SExpr>,
+    ) -> io::Result<Response> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("check requires a running solver");
+        let args = self.arena.list(props.into_iter().collect());
+        solver.send(
+            &self.arena,
+            self.arena.list(vec![self.atoms.check_sat_assuming, args]),
+        )?;
+        let resp = solver.recv(&self.arena)?;
+        if resp == self.atoms.sat {
+            Ok(Response::Sat)
+        } else if resp == self.atoms.unsat {
+            Ok(Response::Unsat)
+        } else if resp == self.atoms.unknown {
+            Ok(Response::Unknown)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("Unexpected result from solver: {}", self.display(resp)),
+            ))
+        }
+    }
+
     /// Assert `check-sat` for the current context.
     pub fn check(&mut self) -> io::Result<Response> {
         let solver = self
