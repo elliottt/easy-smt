@@ -377,12 +377,25 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn scan_symbol(&mut self, start: usize) -> &'a str {
+    /// Scan the current symbol and return the complete lexed string.
+    fn scan_symbol(&mut self, start: usize, is_quote: bool) -> &'a str {
+        // Are we within a || pair?
+        let mut quoted = is_quote;
         let mut end;
+
         loop {
             if let Some((ix, c)) = self.indices.peek() {
                 end = *ix;
-                if c.is_alphabetic() || c.is_numeric() || "~!@$%^&*_-+=<>.?/".contains(*c) {
+                if quoted && *c != '|' {
+                    // If we're in a quoted context, treat this as one identifier.
+                    self.indices.next();
+                    continue;
+                } else if *c == '|' {
+                    // If we see a quote, toggle the quoted flag.
+                    quoted = !quoted;
+                    self.indices.next();
+                    continue;
+                } else if c.is_alphabetic() || c.is_numeric() || "~!@$%^&*_-+=<>.?/".contains(*c) {
                     self.indices.next();
                     continue;
                 }
@@ -393,7 +406,13 @@ impl<'a> Lexer<'a> {
             break;
         }
 
-        &self.chars[start..end]
+        // NOTE(rachitnigam): Not sure if this is the best way to signal an
+        // error in the lexer.
+        assert!(!quoted, "unterminated | in symbol");
+
+        let out = &self.chars[start..end];
+        log::trace!("symbol: {out}");
+        out
     }
 }
 
@@ -417,7 +436,7 @@ impl<'a> Iterator for Lexer<'a> {
 
                 c if c.is_whitespace() => {}
 
-                _ => return Some(Token::Symbol(self.scan_symbol(start))),
+                c => return Some(Token::Symbol(self.scan_symbol(start, c == '|'))),
             }
         }
 
