@@ -38,8 +38,8 @@ fn main() -> std::io::Result<()> {
 
     // Declare `x` and `y` variables that are bitvectors of width 32.
     let bv32 = ctx.bit_vec_sort(ctx.numeral(32));
-    let x = ctx.declare("x", bv32)?;
-    let y = ctx.declare("y", bv32)?;
+    let x = ctx.declare_const("x", bv32)?;
+    let y = ctx.declare_const("y", bv32)?;
 
     // Assert that `x * y = 18`.
     ctx.assert(ctx.eq(

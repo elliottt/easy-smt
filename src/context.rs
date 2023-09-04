@@ -308,15 +308,6 @@ impl Context {
         )
     }
 
-    /// Declares an unconstrained value of the given sort
-    pub fn declare<S: Into<String> + AsRef<str>>(
-        &mut self,
-        name: S,
-        sort: SExpr,
-    ) -> io::Result<SExpr> {
-        self.declare_fun(name, vec![], sort)
-    }
-
     /// Declares a new, uninterpreted function symbol.
     pub fn declare_fun<S: Into<String> + AsRef<str>>(
         &mut self,
@@ -429,6 +420,10 @@ impl Context {
 
     /// Get bindings for values in the model. This is only meaningful after a `check-sat` query.
     pub fn get_value(&mut self, vals: Vec<SExpr>) -> io::Result<Vec<(SExpr, SExpr)>> {
+        if vals.is_empty() {
+            return Ok(vec![]);
+        }
+
         let solver = self
             .solver
             .as_mut()
