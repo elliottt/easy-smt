@@ -410,9 +410,7 @@ impl<'a> Lexer<'a> {
         // error in the lexer.
         assert!(!quoted, "unterminated | in symbol");
 
-        let out = &self.chars[start..end];
-        log::trace!("symbol: {out}");
-        out
+        &self.chars[start..end]
     }
 }
 
