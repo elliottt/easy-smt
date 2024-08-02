@@ -655,15 +655,15 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.atoms.forall)
-            .chain(
-                vars.into_iter()
-                    .map(|(n, s)| self.list(vec![self.atom(n), s])),
-            )
-            .chain(std::iter::once(body))
-            .collect();
-        assert!(args.len() >= 3);
-        self.list(args)
+        let vars_iter =
+            vars
+            .into_iter()
+            .map(|(n, s)| self.list(vec![self.atom(n), s]));
+        self.list(vec![
+            self.atoms.forall,
+            self.list(vars_iter.collect()),
+            body,
+        ])
     }
 
     /// Existentially quantify sorted variables in an expression.
@@ -672,15 +672,15 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.atoms.exists)
-            .chain(
-                vars.into_iter()
-                    .map(|(n, s)| self.list(vec![self.atom(n), s])),
-            )
-            .chain(std::iter::once(body))
-            .collect();
-        assert!(args.len() >= 3);
-        self.list(args)
+        let vars_iter =
+            vars
+            .into_iter()
+            .map(|(n, s)| self.list(vec![self.atom(n), s]));
+        self.list(vec![
+            self.atoms.exists,
+            self.list(vars_iter.collect()),
+            body,
+        ])
     }
 
     /// Perform pattern matching on values of an algebraic data type.
