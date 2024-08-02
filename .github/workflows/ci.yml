@@ -23,4 +23,6 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Run Sudoku Example
-      run: cargo run --example sudoku
+      run: |
+      cargo run --example sudoku
+      cargo run --example quantifiers
