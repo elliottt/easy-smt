@@ -176,6 +176,24 @@ pub struct Context {
 /// underlying solver (via
 /// [`ContextBuilder::solver`][crate::ContextBuilder::solver]).
 impl Context {
+    /// Directly send a command to the solver.
+    pub fn send(&mut self, cmd: SExpr) -> io::Result<()> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("send requires a running solver");
+        solver.send(&self.arena, cmd)
+    }
+
+    /// Directly receive a response from the solver.
+    pub fn recv(&mut self) -> io::Result<SExpr> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("recv requires a running solver");
+        solver.recv(&self.arena)
+    }
+
     pub fn set_option<K>(&mut self, name: K, value: SExpr) -> io::Result<()>
     where
         K: Into<String> + AsRef<str>,
@@ -655,8 +673,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let vars_iter =
-            vars
+        let vars_iter = vars
             .into_iter()
             .map(|(n, s)| self.list(vec![self.atom(n), s]));
         self.list(vec![
@@ -672,8 +689,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let vars_iter =
-            vars
+        let vars_iter = vars
             .into_iter()
             .map(|(n, s)| self.list(vec![self.atom(n), s]));
         self.list(vec![
