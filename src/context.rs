@@ -531,6 +531,32 @@ impl Context {
                 .list(vec![self.atoms.pop, self.arena.atom(n.to_string())]),
         )
     }
+
+    /// Directly send an expression to the solver.
+    /// This is a low-level API and should be used sparingly, such as
+    /// for solver-specific commands that this crate does not provide
+    /// built-in support for. If possible, please use the higher-level
+    /// interfaces provided by this crate.
+    pub fn raw_send(&mut self, cmd: SExpr) -> io::Result<()> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("send requires a running solver");
+        solver.send(&self.arena, cmd)
+    }
+
+    /// Directly receive a response from the solver.
+    /// This is a low-level API and should be used sparingly, such as
+    /// for solver-specific commands that this crate does not provide
+    /// built-in support for. If possible, please use the higher-level
+    /// interfaces provided by this crate.
+    pub fn raw_recv(&mut self) -> io::Result<SExpr> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("recv requires a running solver");
+        solver.recv(&self.arena)
+    }
 }
 
 /// # Basic S-Expression Construction and Inspection
@@ -655,8 +681,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let vars_iter =
-            vars
+        let vars_iter = vars
             .into_iter()
             .map(|(n, s)| self.list(vec![self.atom(n), s]));
         self.list(vec![
@@ -672,8 +697,7 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let vars_iter =
-            vars
+        let vars_iter = vars
             .into_iter()
             .map(|(n, s)| self.list(vec![self.atom(n), s]));
         self.list(vec![
