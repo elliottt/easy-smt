@@ -176,24 +176,6 @@ pub struct Context {
 /// underlying solver (via
 /// [`ContextBuilder::solver`][crate::ContextBuilder::solver]).
 impl Context {
-    /// Directly send a command to the solver.
-    pub fn send(&mut self, cmd: SExpr) -> io::Result<()> {
-        let solver = self
-            .solver
-            .as_mut()
-            .expect("send requires a running solver");
-        solver.send(&self.arena, cmd)
-    }
-
-    /// Directly receive a response from the solver.
-    pub fn recv(&mut self) -> io::Result<SExpr> {
-        let solver = self
-            .solver
-            .as_mut()
-            .expect("recv requires a running solver");
-        solver.recv(&self.arena)
-    }
-
     pub fn set_option<K>(&mut self, name: K, value: SExpr) -> io::Result<()>
     where
         K: Into<String> + AsRef<str>,
@@ -548,6 +530,32 @@ impl Context {
             self.arena
                 .list(vec![self.atoms.pop, self.arena.atom(n.to_string())]),
         )
+    }
+
+    /// Directly send an expression to the solver.
+    /// This is a low-level API and should be used sparingly, such as
+    /// for solver-specific commands that this crate does not provide
+    /// built-in support for. If possible, please use the higher-level
+    /// interfaces provided by this crate.
+    pub fn raw_send(&mut self, cmd: SExpr) -> io::Result<()> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("send requires a running solver");
+        solver.send(&self.arena, cmd)
+    }
+
+    /// Directly receive a response from the solver.
+    /// This is a low-level API and should be used sparingly, such as
+    /// for solver-specific commands that this crate does not provide
+    /// built-in support for. If possible, please use the higher-level
+    /// interfaces provided by this crate.
+    pub fn raw_recv(&mut self) -> io::Result<SExpr> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("recv requires a running solver");
+        solver.recv(&self.arena)
     }
 }
 
