@@ -533,10 +533,19 @@ impl Context {
     }
 
     /// Directly send an expression to the solver.
-    /// This is a low-level API and should be used sparingly, such as
-    /// for solver-specific commands that this crate does not provide
-    /// built-in support for. If possible, please use the higher-level
-    /// interfaces provided by this crate.
+    ///
+    /// You are responsible for reading the response, if any, from the solver by
+    /// calling `context.raw_recv()` immediately after sending a message to the
+    /// solver. Failing to call `context.raw_recv()` afterwards if the solver
+    /// sends a response to your message, or calling it if the solver doesn't
+    /// send a response, will lead to general breakage such as dead locks,
+    /// nonsensical query results, and more.
+    ///
+    /// This is a low-level API and should be used sparingly, such as for
+    /// solver-specific commands that this crate does not provide built-in
+    /// support for. When possible, use the higher-level interfaces provided by
+    /// this crate, for example by calling `context.assert(foo)` rather than
+    /// `context.raw_send(context.list([context.atom("assert"), foo]))`.
     pub fn raw_send(&mut self, cmd: SExpr) -> io::Result<()> {
         let solver = self
             .solver
@@ -546,10 +555,19 @@ impl Context {
     }
 
     /// Directly receive a response from the solver.
-    /// This is a low-level API and should be used sparingly, such as
-    /// for solver-specific commands that this crate does not provide
-    /// built-in support for. If possible, please use the higher-level
-    /// interfaces provided by this crate.
+    ///
+    /// This method should only be used immediately after calling
+    /// `context.raw_send(...)`, to receive the solver's response to that sent
+    /// message. Calling this method at other times, failing to call it when the
+    /// solver sends a response, or calling it when the solver does not send a
+    /// response, will lead to general breakage such as dead locks, nonsensical
+    /// query results, and more.
+    ///
+    /// This is a low-level API and should be used sparingly, such as for
+    /// solver-specific commands that this crate does not provide built-in
+    /// support for. When possible, use the higher-level interfaces provided by
+    /// this crate, for example by calling `context.assert(foo)` rather than
+    /// `context.raw_send(context.list([context.atom("assert"), foo]))`.
     pub fn raw_recv(&mut self) -> io::Result<SExpr> {
         let solver = self
             .solver
