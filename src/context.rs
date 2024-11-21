@@ -483,6 +483,19 @@ impl Context {
         )
     }
 
+    /// Instruct the solver to exit.
+    pub fn exit(&mut self) -> io::Result<()> {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("exit requires a running solver");
+        solver.ack_command(
+            &self.arena,
+            self.atoms.success,
+            self.arena.list(vec![self.atoms.exit]),
+        )
+    }
+
     /// Push a new context frame in the solver. Same as SMTLIB's `push` command.
     pub fn push(&mut self) -> io::Result<()> {
         let solver = self
