@@ -21,6 +21,7 @@ macro_rules! for_each_known_atom {
             get_unsat_core: "get-unsat-core";
             set_logic: "set-logic";
             set_option: "set-option";
+            exit: "exit";
             push: "push";
             pop: "pop";
             bool: "Bool";
