@@ -7,7 +7,7 @@ pub(crate) struct Solver {
     _handle: process::Child,
     stdin: process::ChildStdin,
     stdout: io::Lines<io::BufReader<process::ChildStdout>>,
-    replay_file: Box<dyn io::Write>,
+    replay_file: Box<dyn io::Write + Send>,
     parser: Parser,
 }
 
@@ -15,7 +15,7 @@ impl Solver {
     pub fn new(
         program: ffi::OsString,
         args: Vec<ffi::OsString>,
-        replay_file: Box<dyn io::Write>,
+        replay_file: Box<dyn io::Write + Send>,
     ) -> io::Result<Self> {
         let mut handle = process::Command::new(program)
             .args(args)

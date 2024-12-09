@@ -71,7 +71,7 @@ macro_rules! pairwise {
 #[derive(Default)]
 pub struct ContextBuilder {
     solver_program_and_args: Option<(ffi::OsString, Vec<ffi::OsString>)>,
-    replay_file: Option<Box<dyn io::Write>>,
+    replay_file: Option<Box<dyn io::Write + Send>>,
 }
 
 impl ContextBuilder {
@@ -117,7 +117,7 @@ impl ContextBuilder {
     /// By default, there is no replay file configured.
     pub fn replay_file<W>(&mut self, replay_file: Option<W>) -> &mut Self
     where
-        W: 'static + io::Write,
+        W: 'static + io::Write + Send,
     {
         self.replay_file = replay_file.map(|w| Box::new(w) as _);
         self
