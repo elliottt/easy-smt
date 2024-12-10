@@ -4,7 +4,7 @@ use std::io::{self, BufRead};
 use std::process;
 
 pub(crate) struct Solver {
-    _handle: process::Child,
+    handle: process::Child,
     stdin: process::ChildStdin,
     stdout: io::Lines<io::BufReader<process::ChildStdout>>,
     replay_file: Box<dyn io::Write + Send>,
@@ -26,7 +26,7 @@ impl Solver {
         let stdout = handle.stdout.take().unwrap();
 
         Ok(Self {
-            _handle: handle,
+            handle,
             stdin,
             stdout: io::BufReader::new(stdout).lines(),
             replay_file,
@@ -69,5 +69,11 @@ impl Solver {
                 format!("Unexpected result from solver: {}", arena.display(resp)),
             ))
         }
+    }
+}
+
+impl Drop for Solver {
+    fn drop(&mut self) {
+        let _ = self.handle.wait();
     }
 }
