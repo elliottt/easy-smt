@@ -74,6 +74,7 @@ impl Solver {
 
 impl Drop for Solver {
     fn drop(&mut self) {
+        let _ = self.handle.kill();
         let _ = self.handle.wait();
     }
 }
