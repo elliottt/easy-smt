@@ -1,6 +1,6 @@
 [package]
 name = "easy-smt"
-version = "0.2.4"
+version = "0.2.5"
 authors = [
     "Trevor Elliott <awesomelyawesome@gmail.com>",
     "Nick Fitzgerald <fitzgen@gmail.com>",
