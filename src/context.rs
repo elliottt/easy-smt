@@ -864,6 +864,7 @@ impl Context {
     left_assoc!(bvmul, bvmul_many, bvmul);
     binop!(bvudiv, bvudiv);
     binop!(bvurem, bvurem);
+    binop!(bvsdiv, bvsdiv);
     binop!(bvsrem, bvsrem);
     binop!(bvshl, bvshl);
     binop!(bvlshr, bvlshr);
