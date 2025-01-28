@@ -866,6 +866,7 @@ impl Context {
     binop!(bvurem, bvurem);
     binop!(bvsdiv, bvsdiv);
     binop!(bvsrem, bvsrem);
+    binop!(bvsmod, bvsmod);
     binop!(bvshl, bvshl);
     binop!(bvlshr, bvlshr);
     binop!(bvashr, bvashr);

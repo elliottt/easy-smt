@@ -72,6 +72,7 @@ macro_rules! for_each_known_atom {
             bvudiv: "bvudiv";
             bvurem: "bvurem";
             bvsdiv: "bvsdiv";
+            bvsmod: "bvsmod";
             bvsrem: "bvsrem";
             bvshl: "bvshl";
             bvlshr: "bvlshr";
