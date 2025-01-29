@@ -27,8 +27,8 @@ impl ArenaId {
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SExpr {
     // The index of this `SExpr`'s data within `ArenaInner::atoms` or
-    // `ArenaInner::lists`. If the high bit is set, this is a list, if it is
-    // unset it is an atom.
+    // `ArenaInner::lists`. The top two bits are reserved to tag this as either
+    // an atom, a list, or a string literal.
     index: u32,
 
     // The ID of the arena that this `SExpr` is associated with. Used for debug
@@ -37,29 +37,46 @@ pub struct SExpr {
 }
 
 impl SExpr {
+    const TAG_MASK: u32 = 0b11 << 30;
+
+    fn tag(&self) -> u32 {
+        self.index >> 30
+    }
+
     /// Is this `SExpr` an atom?
     pub fn is_atom(&self) -> bool {
-        self.index & (1 << 31) == 0
+        self.tag() == 0
     }
 
     /// Is this `SExpr` a list?
     pub fn is_list(&self) -> bool {
-        !self.is_atom()
+        self.tag() == 1
+    }
+
+    /// Is this `SExpr` a string literal?
+    pub fn is_string(&self) -> bool {
+        self.tag() == 2
     }
 
     fn atom(index: u32, arena_id: ArenaId) -> Self {
-        assert!(index < u32::MAX);
+        assert_eq!(index & Self::TAG_MASK, 0);
         SExpr { index, arena_id }
     }
 
     fn list(index: u32, arena_id: ArenaId) -> Self {
-        assert!(index < u32::MAX);
-        let index = index | (1 << 31);
+        assert_eq!(index & Self::TAG_MASK, 0);
+        let index = index | (1 << 30);
+        SExpr { index, arena_id }
+    }
+
+    fn string(index: u32, arena_id: ArenaId) -> Self {
+        assert_eq!(index & Self::TAG_MASK, 0);
+        let index = index | (2 << 30);
         SExpr { index, arena_id }
     }
 
     fn index(&self) -> usize {
-        (self.index & !(1 << 31)) as usize
+        (self.index & !Self::TAG_MASK) as usize
     }
 }
 
@@ -81,10 +98,10 @@ struct ArenaInner {
     id: ArenaId,
 
     /// Interned strings.
-    atoms: Vec<String>,
+    strings: Vec<String>,
 
-    /// Backwards lookup for string data.
-    atom_map: HashMap<&'static str, SExpr>,
+    /// Backwards lookup for interned strings.
+    string_map: HashMap<&'static str, u32>,
 
     /// Interned lists.
     lists: Vec<Vec<SExpr>>,
@@ -93,14 +110,30 @@ struct ArenaInner {
     list_map: HashMap<&'static [SExpr], SExpr>,
 }
 
+impl ArenaInner {
+    pub fn intern_string(&mut self, s: impl Into<String> + AsRef<str>) -> u32 {
+        let ix = self.strings.len() as u32;
+
+        let s: String = s.into();
+
+        // // Safety argument: the name will live as long as the context as it is inserted into
+        // // the vector below and never removed or resized.
+        let s_ref: &'static str = unsafe { std::mem::transmute(s.as_str()) };
+        self.strings.push(s);
+        self.string_map.insert(s_ref, ix);
+
+        ix
+    }
+}
+
 pub(crate) struct Arena(RefCell<ArenaInner>);
 
 impl Arena {
     pub fn new() -> Self {
         Self(RefCell::new(ArenaInner {
             id: ArenaId::new(),
-            atoms: Vec::new(),
-            atom_map: HashMap::new(),
+            strings: Vec::new(),
+            string_map: HashMap::new(),
             lists: Vec::new(),
             list_map: HashMap::new(),
         }))
@@ -108,22 +141,22 @@ impl Arena {
 
     pub fn atom(&self, name: impl Into<String> + AsRef<str>) -> SExpr {
         let mut inner = self.0.borrow_mut();
-        if let Some(sexpr) = inner.atom_map.get(name.as_ref()) {
-            *sexpr
+        let ix = if let Some(ix) = inner.string_map.get(name.as_ref()) {
+            *ix
         } else {
-            let ix = inner.atoms.len();
-            let sexpr = SExpr::atom(ix as u32, inner.id);
+            inner.intern_string(name)
+        };
+        SExpr::atom(ix as u32, inner.id)
+    }
 
-            let name: String = name.into();
-
-            // Safety argument: the name will live as long as the context as it is inserted into
-            // the vector below and never removed or resized.
-            let name_ref: &'static str = unsafe { std::mem::transmute(name.as_str()) };
-            inner.atom_map.insert(name_ref, sexpr);
-            inner.atoms.push(name);
-
-            sexpr
-        }
+    fn string(&self, s: &str) -> SExpr {
+        let mut inner = self.0.borrow_mut();
+        let ix = if let Some(ix) = inner.string_map.get(s) {
+            *ix
+        } else {
+            inner.intern_string(s)
+        };
+        SExpr::string(ix, inner.id)
     }
 
     pub fn list(&self, list: Vec<SExpr>) -> SExpr {
@@ -160,13 +193,20 @@ impl Arena {
         if expr.is_atom() {
             // Safety argument: the data will live as long as the containing context, and is
             // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
-            let data = unsafe { std::mem::transmute(inner.atoms[expr.index()].as_str()) };
+            let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
             SExprData::Atom(data)
-        } else {
+        } else if expr.is_list() {
             // Safety argument: the data will live as long as the containing context, and is
             // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
             let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
             SExprData::List(data)
+        } else if expr.is_string() {
+            // Safety argument: the data will live as long as the containing context, and is
+            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+            SExprData::String(data)
+        } else {
+            unreachable!()
         }
     }
 }
@@ -187,8 +227,10 @@ impl Arena {
 /// let x = u8::try_from(ctx.get(neg_one)).unwrap();
 /// assert_eq!(x, 0xff);
 /// ```
+#[derive(Debug)]
 pub enum SExprData<'a> {
     Atom(&'a str),
+    String(&'a str),
     List(&'a [SExpr]),
 }
 
@@ -257,7 +299,7 @@ macro_rules! impl_try_from_int {
                             let x = a.parse::<$ty>()?;
                             Ok(x)
                         }
-                        SExprData::List(_) => Err(IntFromSExprError::NotAnAtom),
+                        SExprData::String(_) | SExprData::List(_) => Err(IntFromSExprError::NotAnAtom),
                     }
                 }
             }
@@ -279,6 +321,11 @@ impl<'a> std::fmt::Display for DisplayExpr<'a> {
         fn fmt_sexpr(f: &mut std::fmt::Formatter, arena: &Arena, sexpr: SExpr) -> std::fmt::Result {
             match arena.get(sexpr) {
                 SExprData::Atom(data) => std::fmt::Display::fmt(data, f),
+                SExprData::String(data) => {
+                    write!(f, "\"")?;
+                    std::fmt::Display::fmt(data, f)?;
+                    write!(f, "\"")
+                }
                 SExprData::List(data) => {
                     write!(f, "(")?;
                     let mut sep = "";
@@ -319,6 +366,16 @@ impl Parser {
         }
     }
 
+    fn string(&mut self, arena: &Arena, sym: &str) -> Option<SExpr> {
+        let expr = arena.string(sym);
+        if let Some(outer) = self.context.last_mut() {
+            outer.push(expr);
+            None
+        } else {
+            Some(expr)
+        }
+    }
+
     fn app(&mut self, arena: &Arena) -> Option<SExpr> {
         if let Some(args) = self.context.pop() {
             let expr = arena.list(args);
@@ -337,6 +394,13 @@ impl Parser {
             match token {
                 Token::Symbol(sym) => {
                     let res = self.atom(arena, sym);
+                    if res.is_some() {
+                        return res;
+                    }
+                }
+
+                Token::String(lit) => {
+                    let res = self.string(arena, lit);
                     if res.is_some() {
                         return res;
                     }
@@ -362,6 +426,7 @@ enum Token<'a> {
     LParen,
     RParen,
     Symbol(&'a str),
+    String(&'a str),
 }
 
 struct Lexer<'a> {
@@ -412,6 +477,23 @@ impl<'a> Lexer<'a> {
 
         &self.chars[start..end]
     }
+
+    /// Scan a string literal. `start` is expected to be the offset of the opening `"`. The scanned
+    /// string excludes both the start and end quotes.
+    fn scan_string(&mut self, start: usize) -> &'a str {
+        while let Some((ix, c)) = self.indices.next() {
+            if c == '\\' {
+                self.indices.next();
+                continue;
+            }
+
+            if c == '"' {
+                return &self.chars[start + 1..ix];
+            }
+        }
+
+        "\"\""
+    }
 }
 
 impl<'a> Iterator for Lexer<'a> {
@@ -426,6 +508,10 @@ impl<'a> Iterator for Lexer<'a> {
 
                 ')' => {
                     return Some(Token::RParen);
+                }
+
+                '"' => {
+                    return Some(Token::String(self.scan_string(start)));
                 }
 
                 // this is a bit of a hack, but if we encounter a comment we clear out the indices
@@ -444,6 +530,7 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::{Arena, Parser, SExprData};
     use crate::ContextBuilder;
 
     #[test]
@@ -464,5 +551,42 @@ mod tests {
         ]);
         assert!(toppings.is_list());
         assert!(!toppings.is_atom());
+    }
+
+    #[test]
+    fn parses_string_lit() {
+        let arena = Arena::new();
+        let mut p = Parser::new();
+
+        let expr = p.parse(&arena, "(error \"line 3 column 16: Parsing function declaration. Expecting sort list '(' got :a\")").expect("Parsing a list with a string literal");
+
+        assert!(expr.is_list());
+
+        let SExprData::List(es) = arena.get(expr) else {
+            panic!("Failed to parse a list");
+        };
+
+        assert_eq!(es.len(), 2);
+
+        assert!(es[0].is_atom());
+        assert!(es[1].is_string());
+
+        match arena.get(es[1]) {
+            SExprData::String(text) => assert_eq!(
+                text,
+                "line 3 column 16: Parsing function declaration. Expecting sort list '(' got :a"
+            ),
+            _ => unreachable!(),
+        };
+
+        let expr = p
+            .parse(&arena, "\"\"")
+            .expect("Parsing the empty string literal");
+
+        assert!(expr.is_string());
+        match arena.get(expr) {
+            SExprData::String(text) => assert!(text.is_empty()),
+            _ => unreachable!(),
+        }
     }
 }
