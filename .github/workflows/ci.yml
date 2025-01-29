@@ -26,3 +26,4 @@ jobs:
       run: |
         cargo run --example sudoku
         cargo run --example quantifiers
+        cargo run --example error
