@@ -325,11 +325,7 @@ impl<'a> std::fmt::Display for DisplayExpr<'a> {
         fn fmt_sexpr(f: &mut std::fmt::Formatter, arena: &Arena, sexpr: SExpr) -> std::fmt::Result {
             match arena.get(sexpr) {
                 SExprData::Atom(data) => std::fmt::Display::fmt(data, f),
-                SExprData::String(data) => {
-                    write!(f, "\"")?;
-                    std::fmt::Display::fmt(data, f)?;
-                    write!(f, "\"")
-                }
+                SExprData::String(data) => std::fmt::Debug::fmt(data, f),
                 SExprData::List(data) => {
                     write!(f, "(")?;
                     let mut sep = "";
