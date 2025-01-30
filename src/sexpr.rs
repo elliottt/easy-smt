@@ -115,13 +115,13 @@ struct ArenaInner {
 }
 
 impl ArenaInner {
-    pub fn intern_string(&mut self, s: impl Into<String> + AsRef<str>) -> u32 {
+    pub fn intern_string(&mut self, s: impl Into<String>) -> u32 {
         let ix = self.strings.len() as u32;
 
         let s: String = s.into();
 
-        // // Safety argument: the name will live as long as the context as it is inserted into
-        // // the vector below and never removed or resized.
+        // Safety argument: the name will live as long as the context as it is inserted into
+        // the vector below and never removed or resized.
         let s_ref: &'static str = unsafe { std::mem::transmute(s.as_str()) };
         self.strings.push(s);
         self.string_map.insert(s_ref, ix);
