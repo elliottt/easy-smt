@@ -388,21 +388,21 @@ impl Parser {
         None
     }
 
-    pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Option<SExpr> {
+    pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Result<SExpr, Option<String>> {
         let lexer = Lexer::new(bytes);
         for token in lexer {
             match token {
                 Token::Symbol(sym) => {
                     let res = self.atom(arena, sym);
-                    if res.is_some() {
-                        return res;
+                    if let Some(res) = res {
+                        return Ok(res);
                     }
                 }
 
                 Token::String(lit) => {
                     let res = self.string(arena, lit);
-                    if res.is_some() {
-                        return res;
+                    if let Some(res) = res {
+                        return Ok(res);
                     }
                 }
 
@@ -410,14 +410,18 @@ impl Parser {
 
                 Token::RParen => {
                     let res = self.app(arena);
-                    if res.is_some() {
-                        return res;
+                    if let Some(res) = res {
+                        return Ok(res);
                     }
+                }
+
+                Token::Error(msg) => {
+                    return Err(Some(msg));
                 }
             }
         }
 
-        None
+        Err(None)
     }
 }
 
@@ -427,6 +431,7 @@ enum Token<'a> {
     RParen,
     Symbol(&'a str),
     String(&'a str),
+    Error(String),
 }
 
 struct Lexer<'a> {
@@ -443,7 +448,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Scan the current symbol and return the complete lexed string.
-    fn scan_symbol(&mut self, start: usize, is_quote: bool) -> &'a str {
+    fn scan_symbol(&mut self, start: usize, is_quote: bool) -> Token<'a> {
         // Are we within a || pair?
         let mut quoted = is_quote;
         let mut end;
@@ -471,16 +476,16 @@ impl<'a> Lexer<'a> {
             break;
         }
 
-        // NOTE(rachitnigam): Not sure if this is the best way to signal an
-        // error in the lexer.
-        assert!(!quoted, "unterminated | in symbol");
+        if quoted {
+            return Token::Error(format!("Unterminated `|` in symbol starting at {start}"));
+        }
 
-        &self.chars[start..end]
+        Token::Symbol(&self.chars[start..end])
     }
 
     /// Scan a string literal. `start` is expected to be the offset of the opening `"`. The scanned
     /// string excludes both the start and end quotes.
-    fn scan_string(&mut self, start: usize) -> &'a str {
+    fn scan_string(&mut self, start: usize) -> Token<'a> {
         while let Some((ix, c)) = self.indices.next() {
             if c == '\\' {
                 self.indices.next();
@@ -488,11 +493,13 @@ impl<'a> Lexer<'a> {
             }
 
             if c == '"' {
-                return &self.chars[start + 1..ix];
+                return Token::String(&self.chars[start + 1..ix]);
             }
         }
 
-        "\"\""
+        Token::Error(format!(
+            "Failed to find terminator for string literal at offset {start}"
+        ))
     }
 }
 
@@ -511,7 +518,7 @@ impl<'a> Iterator for Lexer<'a> {
                 }
 
                 '"' => {
-                    return Some(Token::String(self.scan_string(start)));
+                    return Some(self.scan_string(start));
                 }
 
                 // this is a bit of a hack, but if we encounter a comment we clear out the indices
@@ -520,7 +527,7 @@ impl<'a> Iterator for Lexer<'a> {
 
                 c if c.is_whitespace() => {}
 
-                c => return Some(Token::Symbol(self.scan_symbol(start, c == '|'))),
+                c => return Some(self.scan_symbol(start, c == '|')),
             }
         }
 
