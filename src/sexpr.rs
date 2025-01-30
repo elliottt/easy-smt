@@ -39,23 +39,27 @@ pub struct SExpr {
 impl SExpr {
     const TAG_MASK: u32 = 0b11 << 30;
 
+    const TAG_ATOM: u32 = 0b00;
+    const TAG_LIST: u32 = 0b01;
+    const TAG_STRING: u32 = 0b10;
+
     fn tag(&self) -> u32 {
         self.index >> 30
     }
 
     /// Is this `SExpr` an atom?
     pub fn is_atom(&self) -> bool {
-        self.tag() == 0
+        self.tag() == Self::TAG_ATOM
     }
 
     /// Is this `SExpr` a list?
     pub fn is_list(&self) -> bool {
-        self.tag() == 1
+        self.tag() == Self::TAG_LIST
     }
 
     /// Is this `SExpr` a string literal?
     pub fn is_string(&self) -> bool {
-        self.tag() == 2
+        self.tag() == Self::TAG_STRING
     }
 
     fn atom(index: u32, arena_id: ArenaId) -> Self {
@@ -65,13 +69,13 @@ impl SExpr {
 
     fn list(index: u32, arena_id: ArenaId) -> Self {
         assert_eq!(index & Self::TAG_MASK, 0);
-        let index = index | (1 << 30);
+        let index = index | (Self::TAG_LIST << 30);
         SExpr { index, arena_id }
     }
 
     fn string(index: u32, arena_id: ArenaId) -> Self {
         assert_eq!(index & Self::TAG_MASK, 0);
-        let index = index | (2 << 30);
+        let index = index | (Self::TAG_STRING << 30);
         SExpr { index, arena_id }
     }
 
