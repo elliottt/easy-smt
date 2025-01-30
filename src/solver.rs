@@ -47,8 +47,14 @@ impl Solver {
         for line in self.stdout.by_ref() {
             let line = line?;
             log::trace!("<- {}", line);
-            if let Some(res) = self.parser.parse(arena, &line) {
-                return Ok(res);
+            match self.parser.parse(arena, &line) {
+                Ok(res) => return Ok(res),
+                Err(msg) => {
+                    log::error!("Failed to parse: {line}");
+                    if let Some(msg) = msg {
+                        log::error!("Parse error: {msg}");
+                    }
+                }
             }
         }
 
