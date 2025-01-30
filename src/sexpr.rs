@@ -596,4 +596,16 @@ mod tests {
             _ => unreachable!(),
         }
     }
+
+    #[test]
+    fn parse_error() {
+        let arena = Arena::new();
+        let mut p = Parser::new();
+
+        let err = p.parse(&arena, "(error \"line)")
+            .expect_err("Unterminated string literal should fail to parse")
+            .expect("String literal errors should have error messages");
+
+        assert_eq!(err, "Failed to find terminator for string literal at offset 7");
+    }
 }
