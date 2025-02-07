@@ -878,6 +878,7 @@ impl Context {
     binop!(bvslt, bvslt);
     binop!(bvsge, bvsge);
     binop!(bvsgt, bvsgt);
+    binop!(bvcomp, bvcomp);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

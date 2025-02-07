@@ -85,6 +85,7 @@ macro_rules! for_each_known_atom {
             bvslt: "bvslt";
             bvsge: "bvsge";
             bvsgt: "bvsgt";
+            bvcomp: "bvcomp";
         }
     };
 }
