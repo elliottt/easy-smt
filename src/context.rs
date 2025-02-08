@@ -683,7 +683,7 @@ impl Context {
     pub fn let_<N: Into<String> + AsRef<str>>(&self, name: N, e: SExpr, body: SExpr) -> SExpr {
         self.list(vec![
             self.atoms.let_,
-            self.list(vec![self.atom(name), e]),
+            self.list(vec![self.list(vec![self.atom(name), e])]),
             body,
         ])
     }
@@ -694,16 +694,15 @@ impl Context {
         I: IntoIterator<Item = (N, SExpr)>,
         N: Into<String> + AsRef<str>,
     {
-        let args: Vec<_> = std::iter::once(self.atoms.let_)
-            .chain(
+        self.list(vec![
+            self.atoms.let_,
+            self.list(Vec::from_iter(
                 bindings
                     .into_iter()
                     .map(|(n, v)| self.list(vec![self.atom(n), v])),
-            )
-            .chain(std::iter::once(body))
-            .collect();
-        assert!(args.len() >= 3);
-        self.list(args)
+            )),
+            body,
+        ])
     }
 
     /// Universally quantify sorted variables in an expression.
