@@ -341,6 +341,32 @@ impl<'a> std::fmt::Display for DisplayExpr<'a> {
     }
 }
 
+#[derive(Debug)]
+pub(crate) enum ParseError {
+    /// Parsing failed.
+    Message(String),
+
+    /// More input is needed to finish parsing.
+    More,
+}
+
+#[cfg(test)]
+impl ParseError {
+    fn expect_message(self) -> String {
+        match self {
+            ParseError::Message(msg) => msg,
+            ParseError::More => panic!("Expected a ParseError::Message"),
+        }
+    }
+
+    fn expect_more(self) {
+        match self {
+            ParseError::Message(_) => panic!("Expected a ParseError::More"),
+            ParseError::More => (),
+        }
+    }
+}
+
 pub(crate) struct Parser {
     context: Vec<Vec<SExpr>>,
 }
@@ -388,7 +414,7 @@ impl Parser {
         None
     }
 
-    pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Result<SExpr, Option<String>> {
+    pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Result<SExpr, ParseError> {
         let lexer = Lexer::new(bytes);
         for token in lexer {
             match token {
@@ -416,12 +442,12 @@ impl Parser {
                 }
 
                 Token::Error(msg) => {
-                    return Err(Some(msg));
+                    return Err(ParseError::Message(msg));
                 }
             }
         }
 
-        Err(None)
+        Err(ParseError::More)
     }
 }
 
@@ -602,10 +628,40 @@ mod tests {
         let arena = Arena::new();
         let mut p = Parser::new();
 
-        let err = p.parse(&arena, "(error \"line)")
+        let err = p
+            .parse(&arena, "(error \"line)")
             .expect_err("Unterminated string literal should fail to parse")
-            .expect("String literal errors should have error messages");
+            .expect_message();
 
-        assert_eq!(err, "Failed to find terminator for string literal at offset 7");
+        assert_eq!(
+            err,
+            "Failed to find terminator for string literal at offset 7"
+        );
+    }
+
+    #[test]
+    fn parse_multi_line() {
+        let arena = Arena::new();
+        let mut p = Parser::new();
+
+        p.parse(&arena, "(open (extra \"sequence\")")
+            .expect_err("Open list should expect more")
+            .expect_more();
+
+        p.parse(&arena, "b")
+            .expect_err("Single atom doesn't close a list")
+            .expect_more();
+
+        let expr = p.parse(&arena, ")")
+            .expect("Closing paren should finish the parse");
+
+        let SExprData::List(es) = arena.get(expr) else {
+            panic!("Failed to parse a list");
+        };
+
+        assert_eq!(es.len(), 3);
+        assert!(es[0].is_atom());
+        assert!(es[1].is_list());
+        assert!(es[2].is_atom());
     }
 }
