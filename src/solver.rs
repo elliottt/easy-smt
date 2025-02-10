@@ -5,9 +5,9 @@ use std::process;
 
 pub(crate) struct Solver {
     handle: process::Child,
-    stdin: process::ChildStdin,
+    stdin: io::BufWriter<process::ChildStdin>,
     stdout: io::Lines<io::BufReader<process::ChildStdout>>,
-    replay_file: Box<dyn io::Write + Send>,
+    replay_file: io::BufWriter<Box<dyn io::Write + Send>>,
     parser: Parser,
 }
 
@@ -27,9 +27,9 @@ impl Solver {
 
         Ok(Self {
             handle,
-            stdin,
+            stdin: io::BufWriter::new(stdin),
             stdout: io::BufReader::new(stdout).lines(),
-            replay_file,
+            replay_file: io::BufWriter::new(replay_file),
             parser: Parser::new(),
         })
     }
@@ -38,7 +38,9 @@ impl Solver {
         use io::Write;
         log::trace!("-> {}", arena.display(expr));
         writeln!(self.replay_file, "{}", arena.display(expr))?;
-        writeln!(self.stdin, "{}", arena.display(expr))
+        self.replay_file.flush()?;
+        writeln!(self.stdin, "{}", arena.display(expr))?;
+        self.stdin.flush()
     }
 
     pub fn recv(&mut self, arena: &Arena) -> io::Result<SExpr> {
