@@ -1,4 +1,4 @@
-use crate::sexpr::{Arena, Parser, SExpr};
+use crate::sexpr::{Arena, ParseError, Parser, SExpr};
 use std::ffi;
 use std::io::{self, BufRead};
 use std::process;
@@ -49,11 +49,10 @@ impl Solver {
             log::trace!("<- {}", line);
             match self.parser.parse(arena, &line) {
                 Ok(res) => return Ok(res),
-                Err(msg) => {
+                Err(ParseError::More) => continue,
+                Err(ParseError::Message(msg)) => {
                     log::error!("Failed to parse: {line}");
-                    if let Some(msg) = msg {
-                        log::error!("Parse error: {msg}");
-                    }
+                    log::error!("Parse error: {msg}");
                 }
             }
         }
