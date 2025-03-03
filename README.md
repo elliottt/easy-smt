@@ -33,7 +33,8 @@ use easy_smt::{ContextBuilder, Response};
 fn main() -> std::io::Result<()> {
     // Create a new context, backed by a Z3 subprocess.
     let mut ctx = ContextBuilder::new()
-        .solver("z3", ["-smt2", "-in"])
+        .solver("z3")
+        .solver_args(["-smt2", "-in"])
         .build()?;
 
     // Declare `x` and `y` variables that are bitvectors of width 32.
@@ -147,7 +148,8 @@ fn main() -> std::io::Result<()> {
         // Everything needed to replay the solver session will be written
         // to `replay.smt2`.
         .replay_file(Some(std::fs::File::create("replay.smt2")?))
-        .solver("z3", ["-smt2", "-in"])
+        .solver("z3")
+        .solver_args(["-smt2", "-in"])
         .build()?;
 
     // ...

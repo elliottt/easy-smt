@@ -6,7 +6,8 @@ fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let mut ctx = easy_smt::ContextBuilder::new()
-        .solver("z3", ["-smt2", "-in"])
+        .solver("z3")
+        .solver_args(["-smt2", "-in"])
         .build()?;
 
     // for helping diagnose unsolvable problems
