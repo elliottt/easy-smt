@@ -3,7 +3,7 @@ use crate::{
     sexpr::{Arena, DisplayExpr, SExpr, SExprData},
     solver::Solver,
 };
-use std::{ffi, io};
+use std::{ffi, io, mem};
 
 macro_rules! variadic {
     ($name:ident, $op:ident) => {
@@ -70,7 +70,8 @@ macro_rules! pairwise {
 
 #[derive(Default)]
 pub struct ContextBuilder {
-    solver_program_and_args: Option<(ffi::OsString, Vec<ffi::OsString>)>,
+    solver: Option<ffi::OsString>,
+    solver_args: Vec<ffi::OsString>,
     replay_file: Option<Box<dyn io::Write + Send>>,
 }
 
@@ -82,17 +83,29 @@ impl ContextBuilder {
 
     /// Configure the solver that will be used.
     ///
+    /// You can pass arguments to the underlying solver via the
+    /// [`solver_args`][Self::solver_args] method.
+    ///
     /// By default, no solver is configured, and any `Context` created will only
     /// be able to build and display expressions, not assert them or query for
     /// their satisfiability.
-    pub fn solver<P, A>(&mut self, program: P, args: A) -> &mut Self
+    pub fn solver<P>(&mut self, program: P) -> &mut Self
     where
         P: Into<ffi::OsString>,
+    {
+        self.solver = Some(program.into());
+        self
+    }
+
+    /// Configure the arguments that will be passed to the solver.
+    ///
+    /// By default, no arguments are passed to the solver.
+    pub fn solver_args<A>(&mut self, args: A) -> &mut Self
+    where
         A: IntoIterator,
         A::Item: Into<ffi::OsString>,
     {
-        self.solver_program_and_args =
-            Some((program.into(), args.into_iter().map(|a| a.into()).collect()));
+        self.solver_args = args.into_iter().map(|a| a.into()).collect();
         self
     }
 
@@ -102,7 +115,8 @@ impl ContextBuilder {
     /// `Context` created will only be able to build and display expressions,
     /// not assert them or query for their satisfiability.
     pub fn without_solver(&mut self) -> &mut Self {
-        self.solver_program_and_args = None;
+        self.solver = None;
+        self.solver_args.clear();
         self
     }
 
@@ -128,10 +142,10 @@ impl ContextBuilder {
         let arena = Arena::new();
         let atoms = KnownAtoms::new(&arena);
 
-        let solver = if let Some((program, args)) = self.solver_program_and_args.take() {
+        let solver = if let Some(program) = self.solver.take() {
             Some(Solver::new(
                 program,
-                args,
+                mem::take(&mut self.solver_args),
                 self.replay_file
                     .take()
                     .unwrap_or_else(|| Box::new(io::sink())),
