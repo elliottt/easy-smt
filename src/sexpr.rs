@@ -196,17 +196,34 @@ impl Arena {
 
         if expr.is_atom() {
             // Safety argument: the data will live as long as the containing context, and is
-            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
             let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
             SExprData::Atom(data)
         } else if expr.is_list() {
             // Safety argument: the data will live as long as the containing context, and is
-            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
-            let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
+            // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
+            let data: &[SExpr] =
+                unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
+
+            if data.len() == 2 && data.iter().all(|e| e.is_atom()) {
+                // Safety argument: the data will live as long as the containing context, and is
+                // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
+                let l_data =
+                    unsafe { std::mem::transmute(inner.strings[data[0].index()].as_str()) };
+
+                if !"+-".contains(l_data) {
+                    return SExprData::List(data);
+                }
+
+                let r_data =
+                    unsafe { std::mem::transmute(inner.strings[data[1].index()].as_str()) };
+                return SExprData::TwoAtomList(l_data, r_data);
+            }
+
             SExprData::List(data)
         } else if expr.is_string() {
             // Safety argument: the data will live as long as the containing context, and is
-            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
             let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
             SExprData::String(data)
         } else {
@@ -236,6 +253,7 @@ pub enum SExprData<'a> {
     Atom(&'a str),
     String(&'a str),
     List(&'a [SExpr]),
+    TwoAtomList(&'a str, &'a str),
 }
 
 /// An error which can be returned when trying to interpret an s-expr as an
@@ -260,7 +278,7 @@ impl std::fmt::Display for IntFromSExprError {
                  therefore cannot be converted to an integer."
             ),
             IntFromSExprError::ParseIntError(_) => {
-                write!(f, "There wasn an error parsing the atom as an integer.")
+                write!(f, "There was an error parsing the atom as an integer.")
             }
         }
     }
@@ -303,7 +321,13 @@ macro_rules! impl_try_from_int {
                             let x = a.parse::<$ty>()?;
                             Ok(x)
                         }
-                        SExprData::String(_) | SExprData::List(_) => Err(IntFromSExprError::NotAnAtom),
+                        SExprData::TwoAtomList(l, r) => {
+                            let j = l.to_owned() + r;
+                            let x = j.parse::<$ty>()?;
+                            Ok(x)
+                        },
+                        SExprData::List(_) |
+                        SExprData::String(_)  => Err(IntFromSExprError::NotAnAtom),
                     }
                 }
             }
@@ -311,7 +335,7 @@ macro_rules! impl_try_from_int {
     };
 }
 
-impl_try_from_int!(u8 u16 u32 u64 u128 usize);
+impl_try_from_int!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64);
 
 pub struct DisplayExpr<'a> {
     arena: &'a Arena,
@@ -326,6 +350,13 @@ impl<'a> std::fmt::Display for DisplayExpr<'a> {
             match arena.get(sexpr) {
                 SExprData::Atom(data) => std::fmt::Display::fmt(data, f),
                 SExprData::String(data) => std::fmt::Debug::fmt(data, f),
+                SExprData::TwoAtomList(l_data, r_data) => {
+                    write!(f, "(")?;
+                    std::fmt::Display::fmt(l_data, f)?;
+                    write!(f, " ")?;
+                    std::fmt::Display::fmt(r_data, f)?;
+                    write!(f, ")")
+                }
                 SExprData::List(data) => {
                     write!(f, "(")?;
                     let mut sep = "";
@@ -652,7 +683,8 @@ mod tests {
             .expect_err("Single atom doesn't close a list")
             .expect_more();
 
-        let expr = p.parse(&arena, ")")
+        let expr = p
+            .parse(&arena, ")")
             .expect("Closing paren should finish the parse");
 
         let SExprData::List(es) = arena.get(expr) else {
