@@ -265,7 +265,11 @@ impl Arena {
                 return None;
             }
 
-            let is_negated = inner.strings[data[0].index()].as_str() == "-";
+            let is_negated = match inner.strings[data[0].index()].as_str() {
+                "-" => true,
+                "+" => false,
+                _ => return None,
+            };
 
             let r_data = inner.strings[data[1].index()].as_str();
 
