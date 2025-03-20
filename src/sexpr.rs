@@ -255,7 +255,7 @@ impl Arena {
 
         if expr.is_atom() {
             let data = inner.strings[expr.index()].as_str();
-            return T::try_parse_t(data, "");
+            return T::try_parse_t(data, false);
         }
 
         if expr.is_list() {
@@ -265,10 +265,11 @@ impl Arena {
                 return None;
             }
 
-            let l_data = inner.strings[data[0].index()].as_str();
+            let is_negated = inner.strings[data[0].index()].as_str() == "-";
+
             let r_data = inner.strings[data[1].index()].as_str();
 
-            return T::try_parse_t(r_data, l_data);
+            return T::try_parse_t(r_data, is_negated);
         }
 
         None
@@ -276,25 +277,27 @@ impl Arena {
 }
 
 pub(crate) trait TryParseInt: Sized {
-    fn try_parse_t(a: &str, prefix: &str) -> Option<Self>;
+    fn try_parse_t(a: &str, negate: bool) -> Option<Self>;
 }
 
 macro_rules! impl_get_int {
     ( $( $ty:ty )* ) => {
         $(
             impl TryParseInt for $ty {
-                fn try_parse_t(a: &str, prefix: &str) -> Option<Self> {
-                   if let Some(a) = a.strip_prefix("#x") {
-                        let x = <$ty>::from_str_radix(&(prefix.to_owned() + a), 16).ok();
-                        return x;
+                fn try_parse_t(a: &str, negate: bool) -> Option<Self> {
+                    let x = if let Some(a) = a.strip_prefix("#x") {
+                        <$ty>::from_str_radix(a, 16).ok()?
+                    } else if let Some(a) = a.strip_prefix("#b") {
+                        <$ty>::from_str_radix(a , 2).ok()?
+                    } else {
+                        a.parse::<$ty>().ok()?
+                    };
+
+                    if negate {
+                        return x.checked_neg();
                     }
 
-                    if let Some(a) = a.strip_prefix("#b") {
-                        let x = <$ty>::from_str_radix(&(prefix.to_owned() + a), 2).ok();
-                        return x;
-                    }
-
-                    (prefix.to_owned() + a).parse::<$ty>().ok()
+                    Some(x)
                 }
             }
         )*
@@ -307,8 +310,9 @@ impl_get_int!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize);
 ///
 /// ## Converting `SExprData` to an Integer
 ///
-/// There are `TryFrom<SExprData>` implementations for common integer types that
-/// you can use:
+/// There are a variety of `Context::get_*` helper methods (such as for example
+/// [`Context::get_u8`] and [`Context::get_i64`]) to parse integers out of
+/// s-expressions. For example, you can use:
 ///
 /// ```
 /// let mut ctx = easy_smt::ContextBuilder::new().build().unwrap();
