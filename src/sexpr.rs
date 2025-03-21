@@ -213,14 +213,110 @@ impl Arena {
             unreachable!()
         }
     }
+
+    pub fn get_atom(&self, expr: SExpr) -> Option<&str> {
+        if !expr.is_atom() {
+            return None;
+        }
+
+        let inner = self.0.borrow();
+        // Safety argument: the data will live as long as the containing context, and is
+        // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+        let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+        Some(data)
+    }
+
+    pub fn get_str(&self, expr: SExpr) -> Option<&str> {
+        if !expr.is_string() {
+            return None;
+        }
+
+        let inner = self.0.borrow();
+        // Safety argument: the data will live as long as the containing context, and is
+        // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+        let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+        Some(data)
+    }
+
+    pub fn get_list(&self, expr: SExpr) -> Option<&[SExpr]> {
+        if !expr.is_list() {
+            return None;
+        }
+
+        let inner = self.0.borrow();
+        // Safety argument: the data will live as long as the containing context, and is
+        // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+        let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
+        return Some(data);
+    }
+
+    pub(crate) fn get_t<T: TryParseInt>(&self, expr: SExpr) -> Option<T> {
+        let inner = self.0.borrow();
+
+        if expr.is_atom() {
+            let data = inner.strings[expr.index()].as_str();
+            return T::try_parse_t(data, false);
+        }
+
+        if expr.is_list() {
+            let data = inner.lists[expr.index()].as_slice();
+
+            if data.len() != 2 || data.iter().any(|expr| !expr.is_atom()) {
+                return None;
+            }
+
+            let is_negated = match inner.strings[data[0].index()].as_str() {
+                "-" => true,
+                "+" => false,
+                _ => return None,
+            };
+
+            let r_data = inner.strings[data[1].index()].as_str();
+
+            return T::try_parse_t(r_data, is_negated);
+        }
+
+        None
+    }
 }
+
+pub(crate) trait TryParseInt: Sized {
+    fn try_parse_t(a: &str, negate: bool) -> Option<Self>;
+}
+
+macro_rules! impl_get_int {
+    ( $( $ty:ty )* ) => {
+        $(
+            impl TryParseInt for $ty {
+                fn try_parse_t(a: &str, negate: bool) -> Option<Self> {
+                    let x = if let Some(a) = a.strip_prefix("#x") {
+                        <$ty>::from_str_radix(a, 16).ok()?
+                    } else if let Some(a) = a.strip_prefix("#b") {
+                        <$ty>::from_str_radix(a , 2).ok()?
+                    } else {
+                        a.parse::<$ty>().ok()?
+                    };
+
+                    if negate {
+                        return x.checked_neg();
+                    }
+
+                    Some(x)
+                }
+            }
+        )*
+    };
+}
+
+impl_get_int!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize);
 
 /// The data contents of an [`SExpr`][crate::SExpr].
 ///
 /// ## Converting `SExprData` to an Integer
 ///
-/// There are `TryFrom<SExprData>` implementations for common integer types that
-/// you can use:
+/// There are a variety of `Context::get_*` helper methods (such as for example
+/// [`Context::get_u8`] and [`Context::get_i64`]) to parse integers out of
+/// s-expressions. For example, you can use:
 ///
 /// ```
 /// let mut ctx = easy_smt::ContextBuilder::new().build().unwrap();
@@ -228,7 +324,7 @@ impl Arena {
 /// let neg_one = ctx.binary(8, -1_i8);
 /// assert_eq!(ctx.display(neg_one).to_string(), "#b11111111");
 ///
-/// let x = u8::try_from(ctx.get(neg_one)).unwrap();
+/// let x = ctx.get_u8(neg_one).unwrap();
 /// assert_eq!(x, 0xff);
 /// ```
 #[derive(Debug)]
@@ -652,7 +748,8 @@ mod tests {
             .expect_err("Single atom doesn't close a list")
             .expect_more();
 
-        let expr = p.parse(&arena, ")")
+        let expr = p
+            .parse(&arena, ")")
             .expect("Closing paren should finish the parse");
 
         let SExprData::List(es) = arena.get(expr) else {

@@ -659,6 +659,186 @@ impl Context {
         self.arena.get(expr)
     }
 
+    /// Get the atom data for the given s-expression.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// atom this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_atom(&self, expr: SExpr) -> Option<&str> {
+        self.arena.get_atom(expr)
+    }
+
+    /// Get the string data for the given s-expression.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// string this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_str(&self, expr: SExpr) -> Option<&str> {
+        self.arena.get_str(expr)
+    }
+
+    /// Get the list data for the given s-expression.
+    ///
+    /// This allows you to inspect s-expressions.If the s-expression is not an
+    /// list this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_list(&self, expr: SExpr) -> Option<&[SExpr]> {
+        self.arena.get_list(expr)
+    }
+
+    /// Get the data for the given s-expression as an `u8`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `u8` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_u8(&self, expr: SExpr) -> Option<u8> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `u16`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `u16` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_u16(&self, expr: SExpr) -> Option<u16> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `u32`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `u32` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_u32(&self, expr: SExpr) -> Option<u32> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `u64`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `u64` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_u64(&self, expr: SExpr) -> Option<u64> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `u128`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `u128` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_u128(&self, expr: SExpr) -> Option<u128> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `usize`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `usize` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_usize(&self, expr: SExpr) -> Option<usize> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `i8`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `i8` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_i8(&self, expr: SExpr) -> Option<i8> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `i16`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `i16` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_i16(&self, expr: SExpr) -> Option<i16> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `i32`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `i32` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_i32(&self, expr: SExpr) -> Option<i32> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `i64`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `i64` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_i64(&self, expr: SExpr) -> Option<i64> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `i128`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `i128` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_i128(&self, expr: SExpr) -> Option<i128> {
+        self.arena.get_t(expr)
+    }
+
+    /// Get the data for the given s-expression as an `isize`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `isize` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_isize(&self, expr: SExpr) -> Option<isize> {
+        self.arena.get_t(expr)
+    }
+
     /// Access "known" atoms.
     ///
     /// This lets you skip the is-it-already-interned-or-not checks and hash map
