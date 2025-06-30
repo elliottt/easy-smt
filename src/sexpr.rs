@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, ops::Div};
 
 #[cfg(debug_assertions)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -250,7 +250,7 @@ impl Arena {
         return Some(data);
     }
 
-    pub(crate) fn get_t<T: TryParseInt>(&self, expr: SExpr) -> Option<T> {
+    pub(crate) fn get_i<T: TryParseInt>(&self, expr: SExpr) -> Option<T> {
         let inner = self.0.borrow();
 
         if expr.is_atom() {
@@ -274,6 +274,59 @@ impl Arena {
             let r_data = inner.strings[data[1].index()].as_str();
 
             return T::try_parse_t(r_data, is_negated);
+        }
+
+        None
+    }
+
+    pub(crate) fn get_f<T: TryParseFloat + Div<Output = T>>(&self, expr: SExpr) -> Option<T> {
+        let inner = self.0.borrow();
+
+        if expr.is_atom() {
+            let data = inner.strings[expr.index()].as_str();
+            return T::try_parse_t(data, false);
+        }
+
+        if expr.is_list() {
+            let mut data = inner.lists[expr.index()].as_slice();
+
+            if !([1, 2, 3].contains(&data.len())) || !data[0].is_atom() {
+                return None;
+            }
+
+            let mut index = 0;
+            let is_negated = match inner.strings[data[0].index()].as_str() {
+                "-" => {
+                    index += 1;
+                    true
+                }
+                "+" => {
+                    index += 1;
+                    false
+                }
+                _ => false,
+            };
+
+            // Solution could be of the form  `(- (/ 1.0 2.0))`
+            if data.len() == 2 && !data[1].is_atom() {
+                data = inner.lists[data[1].index()].as_slice();
+                index = 0;
+            }
+
+            if data.len() - index == 1 {
+                return T::try_parse_t(inner.strings[data[index].index()].as_str(), is_negated);
+            }
+
+            // Solution returned is a fraction of the form `(/ 1.0 2.0)`
+            if data.len() - index == 3 && inner.strings[data[index].index()].as_str() == "/" {
+                index += 1;
+                let numerator =
+                    T::try_parse_t(inner.strings[data[index].index()].as_str(), is_negated)?;
+                index += 1;
+                let denominator =
+                    T::try_parse_t(inner.strings[data[index].index()].as_str(), false)?;
+                return Some(numerator / denominator);
+            }
         }
 
         None
@@ -309,6 +362,30 @@ macro_rules! impl_get_int {
 }
 
 impl_get_int!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize);
+
+pub(crate) trait TryParseFloat: Sized {
+    fn try_parse_t(a: &str, negate: bool) -> Option<Self>;
+}
+
+macro_rules! impl_get_float {
+    ( $( $ty:ty )* ) => {
+        $(
+            impl TryParseFloat for $ty {
+                fn try_parse_t(a: &str, negate: bool) -> Option<Self> {
+                    let mut x = a.parse::<$ty>().ok()?;
+
+                    if negate {
+                        x = -x;
+                    }
+
+                    Some(x)
+                }
+            }
+        )*
+    };
+}
+
+impl_get_float!(f32 f64);
 
 /// The data contents of an [`SExpr`][crate::SExpr].
 ///

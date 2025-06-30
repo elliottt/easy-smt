@@ -48,6 +48,9 @@ macro_rules! for_each_known_atom {
             lt: "<";
             gte: ">=";
             gt: ">";
+            real: "Real";
+            slash: "/";
+            to_real: "to_real";
             array: "Array";
             select: "select";
             store: "store";
