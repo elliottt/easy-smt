@@ -313,18 +313,17 @@ impl Arena {
                 index = 0;
             }
 
-            if data.len() - index == 1 {
-                return T::try_parse_t(inner.strings[data[index].index()].as_str(), is_negated);
+            let data = &data[index..];
+
+            if data.len() == 1 {
+                return T::try_parse_t(inner.strings[data[0].index()].as_str(), is_negated);
             }
 
             // Solution returned is a fraction of the form `(/ 1.0 2.0)`
-            if data.len() - index == 3 && inner.strings[data[index].index()].as_str() == "/" {
-                index += 1;
+            if data.len() == 3 && inner.strings[data[0].index()].as_str() == "/" {
                 let numerator =
-                    T::try_parse_t(inner.strings[data[index].index()].as_str(), is_negated)?;
-                index += 1;
-                let denominator =
-                    T::try_parse_t(inner.strings[data[index].index()].as_str(), false)?;
+                    T::try_parse_t(inner.strings[data[1].index()].as_str(), is_negated)?;
+                let denominator = T::try_parse_t(inner.strings[data[2].index()].as_str(), false)?;
                 return Some(numerator / denominator);
             }
         }
