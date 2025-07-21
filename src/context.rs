@@ -68,6 +68,16 @@ macro_rules! pairwise {
     };
 }
 
+/// Command to start Z3
+pub const Z3_PRG: &str = "z3";
+/// Option to set Z3 in quiet mode, use SMT-LIB2 language
+pub const Z3_ARGS: [&str; 3] = ["-smt2", "-in", "-v:0"];
+
+/// Command to start CVC5
+pub const CVC5_PRG: &str = "cvc5";
+/// Option to set CVC5 in quiet mode, use SMT-LIB2 language
+pub const CVC5_ARGS: [&str; 3] = ["--quiet", "--lang=smt2", "--incremental"];
+
 #[derive(Default)]
 pub struct ContextBuilder {
     solver: Option<ffi::OsString>,
@@ -79,6 +89,16 @@ impl ContextBuilder {
     /// Construct a new builder with the default configuration.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Initialize the builder with Z3 defaults.
+    pub fn with_z3_defaults(&mut self) -> &mut Self {
+        self.solver(Z3_PRG).solver_args(Z3_ARGS)
+    }
+
+    /// Initialize the builder with CVC5 defaults.
+    pub fn with_cvc5_defaults(&mut self) -> &mut Self {
+        self.solver(CVC5_PRG).solver_args(CVC5_ARGS)
     }
 
     /// Configure the solver that will be used.

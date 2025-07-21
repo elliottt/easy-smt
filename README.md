@@ -17,10 +17,10 @@
 `easy-smt` is a crate for interacting with an SMT solver subprocess. This crate
 provides APIs for
 
-* building up expressions and assertions using [the SMT-LIB 2
+- building up expressions and assertions using [the SMT-LIB 2
   language](https://smtlib.cs.uiowa.edu/),
-* querying an SMT solver for solutions to those assertions,
-* and inspecting the solver's results.
+- querying an SMT solver for solutions to those assertions,
+- and inspecting the solver's results.
 
 `easy-smt` works with any solver, as long as the solver has an interactive REPL
 mode. You just tell `easy-smt` how to spawn the subprocess.
@@ -33,8 +33,7 @@ use easy_smt::{ContextBuilder, Response};
 fn main() -> std::io::Result<()> {
     // Create a new context, backed by a Z3 subprocess.
     let mut ctx = ContextBuilder::new()
-        .solver("z3")
-        .solver_args(["-smt2", "-in"])
+        .with_z3_defaults()
         .build()?;
 
     // Declare `x` and `y` variables that are bitvectors of width 32.
@@ -148,8 +147,7 @@ fn main() -> std::io::Result<()> {
         // Everything needed to replay the solver session will be written
         // to `replay.smt2`.
         .replay_file(Some(std::fs::File::create("replay.smt2")?))
-        .solver("z3")
-        .solver_args(["-smt2", "-in"])
+        .with_z3_defaults()
         .build()?;
 
     // ...

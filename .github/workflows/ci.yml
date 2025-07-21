@@ -2,27 +2,26 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Install Z3
-      run: sudo apt install -y z3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Run Sudoku Example
-      run: |
-        cargo run --example sudoku
-        cargo run --example quantifiers
+      - uses: actions/checkout@v3
+      - name: Install Z3
+        run: sudo apt install -y z3 cvc5
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+      - name: Run Sudoku Example
+        run: |
+          cargo run --example sudoku
+          cargo run --example quantifiers
