@@ -15,7 +15,7 @@ fn test_real_numbers() {
     let solution = ctx.get_value(vec![x]).unwrap();
     let sol = ctx.get_f64(solution[0].1).unwrap();
     // Z3 returns `2.0`
-    assert!(sol == 2.0, "Expected solution to be 2.5, got {}", sol);
+    assert_eq!(sol, 2.0);
 
     let y = ctx.declare_const("y", ctx.real_sort()).unwrap();
     // y == -2.0
@@ -24,7 +24,7 @@ fn test_real_numbers() {
     let solution = ctx.get_value(vec![y]).unwrap();
     let sol = ctx.get_f64(solution[0].1).unwrap();
     // Z3 returns `- 2.0`
-    assert!(sol == -2.0, "Expected solution to be 2.5, got {}", sol);
+    assert_eq!(sol, -2.0);
 
     let z = ctx.declare_const("z", ctx.real_sort()).unwrap();
     // z == 2.5 / 1.0
@@ -34,7 +34,7 @@ fn test_real_numbers() {
     let solution = ctx.get_value(vec![z]).unwrap();
     let sol = ctx.get_f64(solution[0].1).unwrap();
     // Z3 returns `(/ 5.0 2.0)`
-    assert!(sol == 2.5, "Expected solution to be 2.5, got {}", sol);
+    assert_eq!(sol, 2.5);
 
     let a = ctx.declare_const("a", ctx.real_sort()).unwrap();
     // a == 2.5 / -1.0
@@ -44,5 +44,5 @@ fn test_real_numbers() {
     let solution = ctx.get_value(vec![a]).unwrap();
     let sol = ctx.get_f64(solution[0].1).unwrap();
     // Z3 returns `(- (/ 5.0 2.0))`
-    assert!(sol == -2.5, "Expected solution to be -2.5, got {}", sol);
+    assert_eq!(sol, -2.5);
 }
