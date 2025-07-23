@@ -1,10 +1,7 @@
 // This test ensures that we can handle `(error "...")` responses from z3.
 #[test]
 fn handles_errors_gracefully() -> std::io::Result<()> {
-    let mut context = easy_smt::ContextBuilder::new()
-        .solver("z3")
-        .solver_args(["-smt2", "-in"])
-        .build()?;
+    let mut context = easy_smt::ContextBuilder::new().with_z3_defaults().build()?;
 
     let width = context.numeral(1);
     let sort = context.bit_vec_sort(width);

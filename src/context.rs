@@ -81,6 +81,16 @@ impl ContextBuilder {
         Self::default()
     }
 
+    /// Initialize the builder with Z3 defaults.
+    pub fn with_z3_defaults(&mut self) -> &mut Self {
+        self.solver("z3").solver_args(["-smt2", "-in", "-v:0"])
+    }
+
+    /// Initialize the builder with CVC5 defaults.
+    pub fn with_cvc5_defaults(&mut self) -> &mut Self {
+        self.solver("cvc5").solver_args(["--quiet", "--lang=smt2", "--incremental"])
+    }
+
     /// Configure the solver that will be used.
     ///
     /// You can pass arguments to the underlying solver via the

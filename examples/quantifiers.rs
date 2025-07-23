@@ -3,10 +3,7 @@
 
 fn main() -> std::io::Result<()> {
     env_logger::init();
-    let mut ctx = easy_smt::ContextBuilder::new()
-        .solver("z3")
-        .solver_args(["-smt2", "-in"])
-        .build()?;
+    let mut ctx = easy_smt::ContextBuilder::new().with_z3_defaults().build()?;
 
     // Declare an uninterpreted representation for sets.
     ctx.declare_sort("MySet", 0)?;
