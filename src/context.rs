@@ -704,7 +704,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_u8(&self, expr: SExpr) -> Option<u8> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `u16`.
@@ -716,7 +716,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_u16(&self, expr: SExpr) -> Option<u16> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `u32`.
@@ -728,7 +728,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_u32(&self, expr: SExpr) -> Option<u32> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `u64`.
@@ -740,7 +740,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_u64(&self, expr: SExpr) -> Option<u64> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `u128`.
@@ -752,7 +752,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_u128(&self, expr: SExpr) -> Option<u128> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `usize`.
@@ -764,7 +764,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_usize(&self, expr: SExpr) -> Option<usize> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `i8`.
@@ -776,7 +776,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_i8(&self, expr: SExpr) -> Option<i8> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `i16`.
@@ -788,7 +788,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_i16(&self, expr: SExpr) -> Option<i16> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `i32`.
@@ -800,7 +800,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_i32(&self, expr: SExpr) -> Option<i32> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `i64`.
@@ -812,7 +812,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_i64(&self, expr: SExpr) -> Option<i64> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `i128`.
@@ -824,7 +824,7 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_i128(&self, expr: SExpr) -> Option<i128> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
     }
 
     /// Get the data for the given s-expression as an `isize`.
@@ -836,7 +836,30 @@ impl Context {
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
     pub fn get_isize(&self, expr: SExpr) -> Option<isize> {
-        self.arena.get_t(expr)
+        self.arena.get_i(expr)
+    }
+
+    /// Get the data for the given s-expression as a `f32`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `f32` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_f32(&self, expr: SExpr) -> Option<f32> {
+        self.arena.get_f(expr)
+    }
+
+    /// Get the data for the given s-expression as a `f64`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `f64` this function returns `None`.
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_f64(&self, expr: SExpr) -> Option<f64> {
+        self.arena.get_f(expr)
     }
 
     /// Access "known" atoms.
@@ -995,6 +1018,19 @@ impl Context {
     chainable!(lt, lt_many, lt);
     chainable!(gt, gt_many, gt);
     chainable!(gte, gte_many, gte);
+}
+
+/// # Real Helpers
+///
+/// These methods help you construct s-expressions for various real operations.
+impl Context {
+    /// The `Real` sort.
+    pub fn real_sort(&self) -> SExpr {
+        self.atoms.real
+    }
+
+    left_assoc!(rdiv, rdiv_many, slash);
+    unary!(conv_to_real, to_real);
 }
 
 /// # Array Helpers
