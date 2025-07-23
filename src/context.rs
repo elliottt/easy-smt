@@ -83,12 +83,7 @@ impl ContextBuilder {
 
     /// Initialize the builder with Z3 defaults.
     pub fn with_z3_defaults(&mut self) -> &mut Self {
-        // Command to start Z3
-        const Z3_PRG: &str = "z3";
-        // Option to set Z3 in quiet mode, use SMT-LIB2 language
-        const Z3_ARGS: [&str; 3] = ["-smt2", "-in", "-v:0"];
-
-        self.solver(Z3_PRG).solver_args(Z3_ARGS)
+        self.solver("z3").solver_args(["-smt2", "-in", "-v:0"])
     }
 
     /// Initialize the builder with CVC5 defaults.
