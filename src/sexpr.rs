@@ -196,17 +196,17 @@ impl Arena {
 
         if expr.is_atom() {
             // Safety argument: the data will live as long as the containing context, and is
-            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
             let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
             SExprData::Atom(data)
         } else if expr.is_list() {
             // Safety argument: the data will live as long as the containing context, and is
-            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
             let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
             SExprData::List(data)
         } else if expr.is_string() {
             // Safety argument: the data will live as long as the containing context, and is
-            // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+            // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
             let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
             SExprData::String(data)
         } else {
@@ -221,7 +221,7 @@ impl Arena {
 
         let inner = self.0.borrow();
         // Safety argument: the data will live as long as the containing context, and is
-        // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+        // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
         let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
         Some(data)
     }
@@ -233,7 +233,7 @@ impl Arena {
 
         let inner = self.0.borrow();
         // Safety argument: the data will live as long as the containing context, and is
-        // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+        // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
         let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
         Some(data)
     }
@@ -245,7 +245,7 @@ impl Arena {
 
         let inner = self.0.borrow();
         // Safety argument: the data will live as long as the containing context, and is
-        // immutable once it's inserted, so using the lifteime of the Arena is acceptable.
+        // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
         let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
         return Some(data);
     }
