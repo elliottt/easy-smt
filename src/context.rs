@@ -1091,12 +1091,61 @@ impl Context {
         ])
     }
 
+    /// Rotate the bits of a bit vector left by i bits.
+    pub fn rotate_left(&self, i: u32, bv: SExpr) -> SExpr {
+        self.list(vec![
+            self.list(vec![
+                self.atoms.und,
+                self.atoms.rotate_left,
+                self.numeral(i),
+            ]),
+            bv,
+        ])
+    }
+
+    /// Rotate the bits of a bit vector right by i bits.
+    pub fn rotate_right(&self, i: u32, bv: SExpr) -> SExpr {
+        self.list(vec![
+            self.list(vec![
+                self.atoms.und,
+                self.atoms.rotate_right,
+                self.numeral(i),
+            ]),
+            bv,
+        ])
+    }
+
+    /// Zero extend a bit vector by by_bits.
+    pub fn zero_extend(&self, by_bits: u32, bv: SExpr) -> SExpr {
+        self.list(vec![
+            self.list(vec![
+                self.atoms.und,
+                self.atoms.zero_extend,
+                self.numeral(by_bits),
+            ]),
+            bv,
+        ])
+    }
+
+    /// Sign extend a bit vector by by_bits.
+    pub fn sign_extend(&self, by_bits: u32, bv: SExpr) -> SExpr {
+        self.list(vec![
+            self.list(vec![
+                self.atoms.und,
+                self.atoms.sign_extend,
+                self.numeral(by_bits),
+            ]),
+            bv,
+        ])
+    }
+
     unary!(bvnot, bvnot);
     left_assoc!(bvor, bvor_many, bvor);
     left_assoc!(bvand, bvand_many, bvand);
     left_assoc!(bvnand, bvnand_many, bvnand);
     left_assoc!(bvxor, bvxor_many, bvxor);
     left_assoc!(bvxnor, bvxnor_many, bvxnor);
+    left_assoc!(bvnor, bvnor_many, bvnor);
     unary!(bvneg, bvneg);
     left_assoc!(bvadd, bvadd_many, bvadd);
     binop!(bvsub, bvsub);
