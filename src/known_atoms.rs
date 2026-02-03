@@ -64,6 +64,7 @@ macro_rules! for_each_known_atom {
             extract: "extract";
             bvnot: "bvnot";
             bvor: "bvor";
+            bvnor: "bvnor";
             bvand: "bvand";
             bvnand: "bvnand";
             bvxor: "bvxor";
@@ -89,6 +90,10 @@ macro_rules! for_each_known_atom {
             bvsge: "bvsge";
             bvsgt: "bvsgt";
             bvcomp: "bvcomp";
+            rotate_left: "rotate_left";
+            rotate_right: "rotate_right";
+            zero_extend: "zero_extend";
+            sign_extend: "sign_extend";
         }
     };
 }
