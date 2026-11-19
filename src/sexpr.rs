@@ -541,17 +541,20 @@ impl ParseError {
 
 pub(crate) struct Parser {
     context: Vec<Vec<SExpr>>,
+    pending: String,
 }
 
 impl Parser {
     pub(crate) fn new() -> Self {
         Self {
             context: Vec::new(),
+            pending: String::new(),
         }
     }
 
     pub(crate) fn reset(&mut self) {
         self.context.clear();
+        self.pending.clear();
     }
 
     fn atom(&mut self, arena: &Arena, sym: &str) -> Option<SExpr> {
@@ -587,7 +590,8 @@ impl Parser {
     }
 
     pub(crate) fn parse(&mut self, arena: &Arena, bytes: &str) -> Result<SExpr, ParseError> {
-        let lexer = Lexer::new(bytes);
+        let bytes = std::mem::take(&mut self.pending) + bytes;
+        let lexer = Lexer::new(&bytes);
         for token in lexer {
             match token {
                 Token::Symbol(sym) => {
@@ -613,6 +617,11 @@ impl Parser {
                     }
                 }
 
+                Token::UnterminatedString(text) => {
+                    self.pending = text.to_string() + "\n";
+                    return Err(ParseError::More);
+                }
+
                 Token::Error(msg) => {
                     return Err(ParseError::Message(msg));
                 }
@@ -620,6 +629,17 @@ impl Parser {
         }
 
         Err(ParseError::More)
+    }
+
+    pub(crate) fn finish(&mut self) -> Result<(), ParseError> {
+        if self.pending.is_empty() {
+            return Ok(());
+        }
+
+        self.pending.clear();
+        Err(ParseError::Message(
+            "Failed to find terminator for string literal".to_string(),
+        ))
     }
 }
 
@@ -629,6 +649,7 @@ enum Token<'a> {
     RParen,
     Symbol(&'a str),
     String(&'a str),
+    UnterminatedString(&'a str),
     Error(String),
 }
 
@@ -695,9 +716,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        Token::Error(format!(
-            "Failed to find terminator for string literal at offset {start}"
-        ))
+        Token::UnterminatedString(&self.chars[start..])
     }
 }
 
@@ -800,14 +819,46 @@ mod tests {
         let arena = Arena::new();
         let mut p = Parser::new();
 
+        // The string literal could still be closed on a following line...
+        p.parse(&arena, "(error \"line)")
+            .expect_err("Open string literal should expect more")
+            .expect_more();
+
+        // ...so it only is an error once the input ends.
         let err = p
-            .parse(&arena, "(error \"line)")
+            .finish()
             .expect_err("Unterminated string literal should fail to parse")
             .expect_message();
 
+        assert_eq!(err, "Failed to find terminator for string literal");
+    }
+
+    #[test]
+    fn parse_multi_line_string_lit() {
+        let arena = Arena::new();
+        let mut p = Parser::new();
+
+        p.parse(&arena, "(error \"line 1)")
+            .expect_err("Open string literal should expect more")
+            .expect_more();
+
+        p.parse(&arena, "  line 2 (bool)")
+            .expect_err("Open string literal should expect more")
+            .expect_more();
+
+        let expr = p
+            .parse(&arena, "line 3\")")
+            .expect("Closing quote and paren should finish the parse");
+
+        let SExprData::List(es) = arena.get(expr) else {
+            panic!("Failed to parse a list");
+        };
+
+        assert_eq!(es.len(), 2);
+        assert_eq!(arena.get_atom(es[0]), Some("error"));
         assert_eq!(
-            err,
-            "Failed to find terminator for string literal at offset 7"
+            arena.get_str(es[1]),
+            Some("line 1)\n  line 2 (bool)\nline 3")
         );
     }
 
