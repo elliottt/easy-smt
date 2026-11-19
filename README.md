@@ -17,10 +17,10 @@
 `easy-smt` is a crate for interacting with an SMT solver subprocess. This crate
 provides APIs for
 
-* building up expressions and assertions using [the SMT-LIB 2
+- building up expressions and assertions using [the SMT-LIB 2
   language](https://smtlib.cs.uiowa.edu/),
-* querying an SMT solver for solutions to those assertions,
-* and inspecting the solver's results.
+- querying an SMT solver for solutions to those assertions,
+- and inspecting the solver's results.
 
 `easy-smt` works with any solver, as long as the solver has an interactive REPL
 mode. You just tell `easy-smt` how to spawn the subprocess.
@@ -104,11 +104,9 @@ For example, you can use `env_logger` to see the log messages. Initialize the
 logger at the start of `main`:
 
 ```rust
-fn main() {
-    env_logger::init();
+env_logger::init();
 
-    // ...
-}
+// ...
 ```
 
 And then run your program with the `RUST_LOG="easy_smt=trace"` environment

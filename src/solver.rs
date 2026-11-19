@@ -63,10 +63,7 @@ impl Solver {
             log::error!("Parse error: {msg}");
         }
 
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Failed to parse solver output",
-        ))
+        Err(std::io::Error::other("Failed to parse solver output"))
     }
 
     pub fn ack_command(&mut self, arena: &Arena, success: SExpr, c: SExpr) -> io::Result<()> {
@@ -75,10 +72,10 @@ impl Solver {
         if resp == success {
             Ok(())
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Unexpected result from solver: {}", arena.display(resp)),
-            ))
+            Err(io::Error::other(format!(
+                "Unexpected result from solver: {}",
+                arena.display(resp)
+            )))
         }
     }
 }

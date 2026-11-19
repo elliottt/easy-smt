@@ -150,7 +150,7 @@ impl Arena {
         } else {
             inner.intern_string(name)
         };
-        SExpr::atom(ix as u32, inner.id)
+        SExpr::atom(ix, inner.id)
     }
 
     fn string(&self, s: &str) -> SExpr {
@@ -181,7 +181,7 @@ impl Arena {
         }
     }
 
-    pub fn display(&self, sexpr: SExpr) -> DisplayExpr {
+    pub fn display(&self, sexpr: SExpr) -> DisplayExpr<'_> {
         DisplayExpr { arena: self, sexpr }
     }
 
@@ -197,17 +197,21 @@ impl Arena {
         if expr.is_atom() {
             // Safety argument: the data will live as long as the containing context, and is
             // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
-            let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+            let data =
+                unsafe { std::mem::transmute::<&str, &str>(inner.strings[expr.index()].as_str()) };
             SExprData::Atom(data)
         } else if expr.is_list() {
             // Safety argument: the data will live as long as the containing context, and is
             // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
-            let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
+            let data = unsafe {
+                std::mem::transmute::<&[SExpr], &[SExpr]>(inner.lists[expr.index()].as_slice())
+            };
             SExprData::List(data)
         } else if expr.is_string() {
             // Safety argument: the data will live as long as the containing context, and is
             // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
-            let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+            let data =
+                unsafe { std::mem::transmute::<&str, &str>(inner.strings[expr.index()].as_str()) };
             SExprData::String(data)
         } else {
             unreachable!()
@@ -222,7 +226,8 @@ impl Arena {
         let inner = self.0.borrow();
         // Safety argument: the data will live as long as the containing context, and is
         // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
-        let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+        let data =
+            unsafe { std::mem::transmute::<&str, &str>(inner.strings[expr.index()].as_str()) };
         Some(data)
     }
 
@@ -234,7 +239,8 @@ impl Arena {
         let inner = self.0.borrow();
         // Safety argument: the data will live as long as the containing context, and is
         // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
-        let data = unsafe { std::mem::transmute(inner.strings[expr.index()].as_str()) };
+        let data =
+            unsafe { std::mem::transmute::<&str, &str>(inner.strings[expr.index()].as_str()) };
         Some(data)
     }
 
@@ -246,8 +252,10 @@ impl Arena {
         let inner = self.0.borrow();
         // Safety argument: the data will live as long as the containing context, and is
         // immutable once it's inserted, so using the lifetime of the Arena is acceptable.
-        let data = unsafe { std::mem::transmute(inner.lists[expr.index()].as_slice()) };
-        return Some(data);
+        let data = unsafe {
+            std::mem::transmute::<&[SExpr], &[SExpr]>(inner.lists[expr.index()].as_slice())
+        };
+        Some(data)
     }
 
     pub(crate) fn get_i<T: TryParseInt>(&self, expr: SExpr) -> Option<T> {

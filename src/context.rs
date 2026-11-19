@@ -239,10 +239,10 @@ impl Context {
         } else if resp == self.atoms.unknown {
             Ok(Response::Unknown)
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Unexpected result from solver: {}", self.display(resp)),
-            ))
+            Err(io::Error::other(format!(
+                "Unexpected result from solver: {}",
+                self.display(resp)
+            )))
         }
     }
 
@@ -261,10 +261,10 @@ impl Context {
         } else if resp == self.atoms.unknown {
             Ok(Response::Unknown)
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("Unexpected result from solver: {}", self.display(resp)),
-            ))
+            Err(io::Error::other(format!(
+                "Unexpected result from solver: {}",
+                self.display(resp)
+            )))
         }
     }
 
@@ -475,10 +475,7 @@ impl Context {
                 Ok(res)
             }
 
-            _ => Err(io::Error::new(
-                io::ErrorKind::Other,
-                "Failed to parse solver output",
-            )),
+            _ => Err(io::Error::other("Failed to parse solver output")),
         }
     }
 
@@ -517,13 +514,10 @@ impl Context {
                 debug_assert_eq!(key, &keyword);
                 Ok(*value)
             }
-            _ => Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!(
-                    "Unexpected response from solver: {}",
-                    self.arena.display(response)
-                ),
-            )),
+            _ => Err(io::Error::other(format!(
+                "Unexpected response from solver: {}",
+                self.arena.display(response)
+            ))),
         }
     }
 
@@ -705,7 +699,7 @@ impl Context {
     /// You may only pass in `SExpr`s that were created by this
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
-    pub fn display(&self, expr: SExpr) -> DisplayExpr {
+    pub fn display(&self, expr: SExpr) -> DisplayExpr<'_> {
         self.arena.display(expr)
     }
 
@@ -716,7 +710,7 @@ impl Context {
     /// You may only pass in `SExpr`s that were created by this
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
-    pub fn get(&self, expr: SExpr) -> SExprData {
+    pub fn get(&self, expr: SExpr) -> SExprData<'_> {
         self.arena.get(expr)
     }
 
