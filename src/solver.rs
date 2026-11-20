@@ -59,6 +59,10 @@ impl Solver {
             }
         }
 
+        if let Err(ParseError::Message(msg)) = self.parser.finish() {
+            log::error!("Parse error: {msg}");
+        }
+
         Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "Failed to parse solver output",

@@ -14,3 +14,13 @@ fn handles_errors_gracefully() -> std::io::Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn handles_multiline_errors() -> std::io::Result<()> {
+    let mut context = easy_smt::ContextBuilder::new().with_z3_defaults().build()?;
+
+    let err = context.set_option(":no_such_option", context.true_());
+    assert!(err.is_err());
+
+    Ok(())
+}
