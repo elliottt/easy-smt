@@ -59,8 +59,7 @@ impl Solver {
             }
         }
 
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        Err(std::io::Error::other(
             "Failed to parse solver output",
         ))
     }
@@ -71,8 +70,7 @@ impl Solver {
         if resp == success {
             Ok(())
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
+            Err(io::Error::other(
                 format!("Unexpected result from solver: {}", arena.display(resp)),
             ))
         }
