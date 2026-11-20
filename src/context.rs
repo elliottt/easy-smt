@@ -88,7 +88,8 @@ impl ContextBuilder {
 
     /// Initialize the builder with CVC5 defaults.
     pub fn with_cvc5_defaults(&mut self) -> &mut Self {
-        self.solver("cvc5").solver_args(["--quiet", "--lang=smt2", "--incremental"])
+        self.solver("cvc5")
+            .solver_args(["--quiet", "--lang=smt2", "--incremental"])
     }
 
     /// Configure the solver that will be used.
@@ -494,6 +495,56 @@ impl Context {
         solver.recv(&self.arena)
     }
 
+    /// Returns information about the given keyword
+    pub fn get_info<K>(&mut self, keyword: K) -> io::Result<SExpr>
+    where
+        K: Into<String> + AsRef<str>,
+    {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("get_info requires a running solver");
+
+        let keyword = self.arena.atom(keyword);
+        solver.send(
+            &self.arena,
+            self.arena.list(vec![self.atoms.get_info, keyword]),
+        )?;
+        let response = solver.recv(&self.arena)?;
+
+        match self.arena.get(response) {
+            SExprData::List([key, value]) => {
+                debug_assert_eq!(key, &keyword);
+                Ok(*value)
+            }
+            _ => Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Unexpected response from solver: {}",
+                    self.arena.display(response)
+                ),
+            )),
+        }
+    }
+
+    // Returns the current value of the option
+    pub fn get_option<K>(&mut self, name: K) -> io::Result<SExpr>
+    where
+        K: Into<String> + AsRef<str>,
+    {
+        let solver = self
+            .solver
+            .as_mut()
+            .expect("get_option requires a running solver");
+
+        solver.send(
+            &self.arena,
+            self.arena
+                .list(vec![self.atoms.get_option, self.arena.atom(name)]),
+        )?;
+        solver.recv(&self.arena)
+    }
+
     pub fn set_logic<L: Into<String> + AsRef<str>>(&mut self, logic: L) -> io::Result<()> {
         let solver = self
             .solver
@@ -703,6 +754,26 @@ impl Context {
     /// invalid data.
     pub fn get_list(&self, expr: SExpr) -> Option<&[SExpr]> {
         self.arena.get_list(expr)
+    }
+
+    /// Get the data for the given s-expression as an `bool`.
+    ///
+    /// This allows you to inspect s-expressions. If the s-expression is not an
+    /// cannot be parsed into an `bool` this function returns `None`.
+    ///
+    /// You may only pass in `SExpr`s that were created by this
+    /// `Context`. Failure to do so is safe, but may trigger a panic or return
+    /// invalid data.
+    pub fn get_bool(&self, expr: SExpr) -> Option<bool> {
+        if expr == self.atoms.t {
+            return Some(true);
+        }
+
+        if expr == self.atoms.f {
+            return Some(false);
+        }
+
+        None
     }
 
     /// Get the data for the given s-expression as an `u8`.

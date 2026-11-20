@@ -19,6 +19,8 @@ macro_rules! for_each_known_atom {
             get_model: "get-model";
             get_value: "get-value";
             get_unsat_core: "get-unsat-core";
+            get_info: "get-info";
+            get_option: "get-option";
             set_logic: "set-logic";
             set_option: "set-option";
             exit: "exit";
