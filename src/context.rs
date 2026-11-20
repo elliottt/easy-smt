@@ -88,7 +88,8 @@ impl ContextBuilder {
 
     /// Initialize the builder with CVC5 defaults.
     pub fn with_cvc5_defaults(&mut self) -> &mut Self {
-        self.solver("cvc5").solver_args(["--quiet", "--lang=smt2", "--incremental"])
+        self.solver("cvc5")
+            .solver_args(["--quiet", "--lang=smt2", "--incremental"])
     }
 
     /// Configure the solver that will be used.
@@ -238,8 +239,7 @@ impl Context {
         } else if resp == self.atoms.unknown {
             Ok(Response::Unknown)
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
+            Err(io::Error::other(
                 format!("Unexpected result from solver: {}", self.display(resp)),
             ))
         }
@@ -260,8 +260,7 @@ impl Context {
         } else if resp == self.atoms.unknown {
             Ok(Response::Unknown)
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
+            Err(io::Error::other(
                 format!("Unexpected result from solver: {}", self.display(resp)),
             ))
         }
@@ -474,8 +473,7 @@ impl Context {
                 Ok(res)
             }
 
-            _ => Err(io::Error::new(
-                io::ErrorKind::Other,
+            _ => Err(io::Error::other(
                 "Failed to parse solver output",
             )),
         }
@@ -654,7 +652,7 @@ impl Context {
     /// You may only pass in `SExpr`s that were created by this
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
-    pub fn display(&self, expr: SExpr) -> DisplayExpr {
+    pub fn display(&self, expr: SExpr) -> DisplayExpr<'_> {
         self.arena.display(expr)
     }
 
@@ -665,7 +663,7 @@ impl Context {
     /// You may only pass in `SExpr`s that were created by this
     /// `Context`. Failure to do so is safe, but may trigger a panic or return
     /// invalid data.
-    pub fn get(&self, expr: SExpr) -> SExprData {
+    pub fn get(&self, expr: SExpr) -> SExprData<'_> {
         self.arena.get(expr)
     }
 
